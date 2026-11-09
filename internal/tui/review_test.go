@@ -275,6 +275,28 @@ func TestUndoInProductionReturnsToTyping(t *testing.T) {
 	mustNotContain(t, screen(a), "meat", "Done.")
 }
 
+func TestCtrlZUndoesTheLastGradeWhileTyping(t *testing.T) {
+	rec := &recorder{}
+	cards := append([]domain.Card{deck()[0]}, prodDeck()...)
+	a := newApp(t, cards, rec, Review, 80, 24)
+	a, _ = press(t, a, "space", "3")
+	mustContain(t, screen(a), "Mucho gusto", "›")
+
+	// While typing, u is a letter of the answer.
+	a, _ = press(t, a, "u")
+	if len(rec.saved) != 1 {
+		t.Fatalf("u while typing must not undo, saved %+v", rec.saved)
+	}
+
+	a, _ = press(t, a, "ctrl+z")
+
+	if len(rec.saved) != 2 || !reflect.DeepEqual(rec.saved[1], deck()[0]) {
+		t.Fatalf("ctrl+z should restore the previous card, saved %+v", rec.saved)
+	}
+	mustContain(t, screen(a), "hello", "1 / 2")
+	mustNotContain(t, screen(a), "Mucho gusto")
+}
+
 func TestReviewMixesBothDirections(t *testing.T) {
 	cards := append(deck(), prodDeck()...)
 	a := newApp(t, cards, &recorder{}, Review, 80, 24)

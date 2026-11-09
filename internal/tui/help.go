@@ -29,7 +29,7 @@ var helpSections = []struct {
 		{"space", "reveal the answer (English → Spanish)"},
 		{"1–4", "grade your recall: 1 again · 2 hard · 3 good · 4 easy"},
 		{"enter", "check a typed answer (Spanish → English)"},
-		{"u", "undo the last grade"},
+		{"u", "undo the last grade (ctrl+z while typing an answer)"},
 		{"r", "review the session's mistakes again (dates don't move)"},
 	}},
 	{"Words", [][2]string{

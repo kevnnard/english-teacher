@@ -56,7 +56,7 @@ The `?` overlay shows the same list.
 | Review | `space` | reveal the answer (English → Spanish) |
 | | `1`–`4` | grade your recall: 1 again · 2 hard · 3 good · 4 easy |
 | | `enter` | check a typed answer (Spanish → English) |
-| | `u` | undo the last grade |
+| | `u` / `ctrl+z` | undo the last grade (`ctrl+z` also works while typing an answer) |
 | | `r` | review the session's mistakes again (dates don't move) |
 | Words | `/` | filter by word or meaning (`enter` keep · `esc` clear) |
 | | `↑` `↓` / `j` `k` | scroll |

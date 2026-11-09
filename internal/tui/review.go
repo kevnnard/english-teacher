@@ -88,7 +88,8 @@ func (a App) updateReview(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	s := a.current()
 	k := msg.String()
 
-	if k == "u" && s.phase != typing && s.undo != nil {
+	// u is a letter while typing an answer, so ctrl+z undoes in every phase.
+	if (k == "ctrl+z" || k == "u" && s.phase != typing) && s.undo != nil {
 		return a, a.undo()
 	}
 
