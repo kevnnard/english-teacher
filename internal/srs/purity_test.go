@@ -9,16 +9,19 @@ import (
 	"testing"
 )
 
-// allowedImports keeps domain and srs pure (spec S3): no I/O, network or UI.
+// allowedImports keeps domain, srs and check pure (spec S3): no I/O, network or UI.
 var allowedImports = map[string]bool{
-	"fmt":  true,
-	"math": true,
-	"time": true,
+	"fmt":     true,
+	"math":    true,
+	"slices":  true,
+	"strings": true,
+	"time":    true,
+	"unicode": true,
 	"github.com/kevnnard/english-teacher/internal/domain": true,
 }
 
 func TestPackagesArePure(t *testing.T) {
-	for _, dir := range []string{".", "../domain"} {
+	for _, dir := range []string{".", "../domain", "../check"} {
 		files, err := filepath.Glob(filepath.Join(dir, "*.go"))
 		if err != nil {
 			t.Fatal(err)

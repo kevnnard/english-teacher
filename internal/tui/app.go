@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/kevnnard/english-teacher/internal/domain"
+	"github.com/kevnnard/english-teacher/internal/srs"
 )
 
 // SaveFunc persists a card after the learner grades it.
@@ -36,11 +37,15 @@ func (s Screen) String() string {
 
 // Config is what the app needs from the outside world.
 type Config struct {
-	Cards []domain.Card    // every card in the store
-	Save  SaveFunc         // called after each grade
-	Now   func() time.Time // injected clock
-	Start Screen           // the screen to open on
+	Cards  []domain.Card    // every card in the store, in both directions
+	Save   SaveFunc         // called after each grade and undo
+	Now    func() time.Time // injected clock
+	Start  Screen           // the screen to open on
+	MaxNew int              // most never-reviewed cards per session
 }
+
+// DefaultMaxNew is the usual cap on new cards in one session.
+const DefaultMaxNew = 20
 
 // App is the root Bubbletea model.
 type App struct {
@@ -54,7 +59,9 @@ type App struct {
 	coach         bool // the learner wants the coach panel (shown only when wide)
 	help          bool
 	palette       palette
-	review        session
+	review        session // today's session; its counts feed the status bar
+	round         session // the mistakes round, which never saves
+	inRound       bool    // the mistakes round is on screen
 	words         wordList
 	err           error // a failed save stops the app
 }
@@ -62,6 +69,7 @@ type App struct {
 // NewApp returns the app on cfg.Start.
 func NewApp(cfg Config) App {
 	cards := slices.Clone(cfg.Cards)
+	queue := srs.PlanSession(cards, cfg.Now(), cfg.MaxNew)
 	return App{
 		cards:  cards,
 		save:   cfg.Save,
@@ -69,7 +77,7 @@ func NewApp(cfg Config) App {
 		screen: cfg.Start,
 		st:     newStyles(true), // until the terminal reports its background
 		coach:  true,
-		review: newSession(cards, cfg.Now()),
+		review: newSession(cards, queue, false, cfg.Now()),
 	}
 }
 
@@ -143,7 +151,14 @@ func (a App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 // typing reports whether the active screen has a text input with focus.
 func (a App) typing() bool {
-	return a.screen == Words && a.words.filtering
+	switch a.screen {
+	case Words:
+		return a.words.filtering
+	case Review:
+		s := a.current()
+		return !s.done() && s.phase == typing
+	}
+	return false
 }
 
 func (a App) updateScreen(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {

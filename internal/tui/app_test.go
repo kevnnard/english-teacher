@@ -155,6 +155,39 @@ func TestNoLineExceedsTheTerminalWidth(t *testing.T) {
 	}
 }
 
+func TestReviewStatesFitTheTerminalWidth(t *testing.T) {
+	long := prodDeck()
+	long[1].LastWrong = strings.Repeat("a very long wrong answer ", 6)
+	states := map[string]struct {
+		cards []domain.Card
+		keys  []string
+	}{
+		"production":    {long, nil},
+		"near miss":     {long, strings.Split("n i c e space t o space m e a t space y o u enter", " ")},
+		"wrong":         {long, []string{"x", "enter"}},
+		"session end":   {deck(), []string{"space", "1", "space", "1", "space", "3", "space", "3", "space", "3"}},
+		"mistakes done": {deck(), []string{"space", "1", "space", "3", "space", "3", "space", "3", "space", "3", "r", "space", "1"}},
+	}
+	for _, width := range []int{60, 80, 120, 160} {
+		for name, st := range states {
+			t.Run(fmt.Sprintf("%d/%s", width, name), func(t *testing.T) {
+				a := newApp(t, st.cards, &recorder{}, Review, width, 24)
+				a, _ = press(t, a, st.keys...)
+
+				lines := strings.Split(a.View().Content, "\n")
+				if len(lines) != 24 {
+					t.Errorf("view has %d lines, want 24", len(lines))
+				}
+				for i, l := range lines {
+					if w := ansi.StringWidth(l); w > width {
+						t.Errorf("line %d is %d columns wide (terminal %d):\n%s", i, w, width, ansi.Strip(l))
+					}
+				}
+			})
+		}
+	}
+}
+
 func TestStatusBarIsTheLastRow(t *testing.T) {
 	for _, width := range []int{60, 80, 120, 160} {
 		a := newApp(t, deck(), &recorder{}, Home, width, 24)

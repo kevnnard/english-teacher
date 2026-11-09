@@ -88,9 +88,26 @@ func deck() []domain.Card {
 // newApp builds an app over cards at fixedNow, already sized to w×h.
 func newApp(t *testing.T, cards []domain.Card, rec *recorder, start Screen, w, h int) App {
 	t.Helper()
+	a, _ := newAppClock(t, cards, rec, start, w, h)
+	return a
+}
+
+// newAppClock is newApp that also returns the clock, to move time forward.
+func newAppClock(t *testing.T, cards []domain.Card, rec *recorder, start Screen, w, h int) (App, *testClock) {
+	t.Helper()
 	clock := &testClock{t: fixedNow}
-	a := NewApp(Config{Cards: cards, Save: rec.save, Now: clock.now, Start: start})
-	return send(t, a, tea.WindowSizeMsg{Width: w, Height: h})
+	a := NewApp(Config{Cards: cards, Save: rec.save, Now: clock.now, Start: start, MaxNew: DefaultMaxNew})
+	return send(t, a, tea.WindowSizeMsg{Width: w, Height: h}), clock
+}
+
+// prodDeck has one word whose production direction has just been unlocked:
+// its recognition card has two repetitions and is not due.
+func prodDeck() []domain.Card {
+	rec := reviewed(word("nice to meet you", "/naɪs tuː miːt juː/", "Mucho gusto", "Nice to meet you, I'm Kevin."), day(6), 6)
+	rec.Repetitions = 2
+	prod := word(rec.Word, rec.Pronunciation, rec.Meaning, rec.Example)
+	prod.Direction = domain.Production
+	return []domain.Card{rec, prod}
 }
 
 // send feeds msgs to a in order and returns the final model.

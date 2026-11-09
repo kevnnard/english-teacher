@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/kevnnard/english-teacher/internal/domain"
 )
 
 var update = flag.Bool("update", false, "rewrite the golden files in testdata/")
@@ -17,17 +19,22 @@ var update = flag.Bool("update", false, "rewrite the golden files in testdata/")
 func TestGolden(t *testing.T) {
 	cases := []struct {
 		name  string
+		cards []domain.Card
 		start Screen
 		keys  []string
 	}{
-		{name: "home", start: Home},
-		{name: "review", start: Review, keys: []string{"space"}},
+		{name: "home", cards: deck(), start: Home},
+		{name: "review", cards: deck(), start: Review, keys: []string{"space"}},
+		{name: "review-almost", cards: prodDeck(), start: Review,
+			keys: strings.Split("n i c e space t o space m e a t space y o u enter", " ")},
+		{name: "review-done", cards: deck(), start: Review,
+			keys: []string{"space", "1", "space", "1", "space", "3", "space", "3", "space", "4"}},
 	}
 	for _, c := range cases {
 		for _, width := range []int{80, 120, 160} {
 			name := fmt.Sprintf("%s-%d", c.name, width)
 			t.Run(name, func(t *testing.T) {
-				a := newApp(t, deck(), &recorder{}, c.start, width, 24)
+				a := newApp(t, c.cards, &recorder{}, c.start, width, 24)
 				a, _ = press(t, a, c.keys...)
 				got := trimRight(screen(a))
 

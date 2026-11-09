@@ -2,8 +2,8 @@
 //
 // Usage:
 //
-//	teacher [--db path]                                  open the app on Home
-//	teacher [--db path] review                           open the app on Review
+//	teacher [--db path] [--new n]                        open the app on Home
+//	teacher [--db path] [--new n] review                 open the app on Review
 //	teacher [--db path] import <vocabulary-bank.md>      import the vocabulary bank
 package main
 
@@ -26,9 +26,11 @@ import (
 )
 
 const usage = `usage:
-  teacher [--db path]                              open the app on Home
-  teacher [--db path] review                       open the app on Review
-  teacher [--db path] import <vocabulary-bank.md>  import the vocabulary bank`
+  teacher [--db path] [--new n]                    open the app on Home
+  teacher [--db path] [--new n] review             open the app on Review
+  teacher [--db path] import <vocabulary-bank.md>  import the vocabulary bank
+
+  --new n  most never-reviewed cards per session (default 20)`
 
 func main() {
 	if err := run(os.Args[1:], os.Stdout); err != nil {
@@ -44,11 +46,15 @@ func run(args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("teacher", flag.ContinueOnError)
 	fs.SetOutput(io.Discard) // errors are returned, not printed twice
 	dbPath := fs.String("db", defaultDBPath(os.Getenv("XDG_DATA_HOME"), home), "path to the SQLite database")
+	maxNew := fs.Int("new", tui.DefaultMaxNew, "most never-reviewed cards per session")
 	if err := fs.Parse(args); err != nil {
 		return fmt.Errorf("%w\n%s", err, usage)
 	}
+	if *maxNew < 0 {
+		return fmt.Errorf("--new must be 0 or more, got %d", *maxNew)
+	}
 
-	opts := appOptions{dbPath: *dbPath, start: tui.Home}
+	opts := appOptions{dbPath: *dbPath, start: tui.Home, maxNew: *maxNew}
 	if fs.NArg() == 0 {
 		return startApp(opts)
 	}
@@ -122,6 +128,21 @@ func runImport(dbPath, bankPath string, stdout io.Writer) error {
 type appOptions struct {
 	dbPath string
 	start  tui.Screen
+	maxNew int
+}
+
+// loadCards reads every word in both directions: recognition first, which
+// is the order the Words screen lists them in.
+func loadCards(ctx context.Context, st *store.Store) ([]domain.Card, error) {
+	var all []domain.Card
+	for _, dir := range []domain.Direction{domain.Recognition, domain.Production} {
+		cards, err := st.ListCards(ctx, dir)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, cards...)
+	}
+	return all, nil
 }
 
 // startApp runs the TUI. It is a variable so tests can check how run calls
@@ -136,16 +157,17 @@ func runApp(opts appOptions) error {
 	defer st.Close()
 
 	ctx := context.Background()
-	cards, err := st.ListCards(ctx, domain.Recognition)
+	cards, err := loadCards(ctx, st)
 	if err != nil {
 		return err
 	}
 
 	app := tui.NewApp(tui.Config{
-		Cards: cards,
-		Save:  func(c domain.Card) error { return st.SaveCard(ctx, c) },
-		Now:   time.Now,
-		Start: opts.start,
+		Cards:  cards,
+		Save:   func(c domain.Card) error { return st.SaveCard(ctx, c) },
+		Now:    time.Now,
+		Start:  opts.start,
+		MaxNew: opts.maxNew,
 	})
 	final, err := tea.NewProgram(app).Run()
 	if err != nil {

@@ -46,9 +46,16 @@ func (l wordList) update(msg tea.KeyPressMsg, total, visible int) wordList {
 	return l
 }
 
-// wordCards are the cards of the Words screen and Home counts: one per word.
+// wordCards are the cards of the Words screen and Home counts: one per
+// word, its recognition card, since every word starts there.
 func (a App) wordCards() []domain.Card {
-	return a.cards
+	var out []domain.Card
+	for _, c := range a.cards {
+		if c.Direction == domain.Recognition {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // filteredWords are the word cards whose word or meaning contains the filter.

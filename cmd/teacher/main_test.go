@@ -2,11 +2,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/kevnnard/english-teacher/internal/domain"
 	"github.com/kevnnard/english-teacher/internal/tui"
 )
 
@@ -89,10 +91,48 @@ func TestRunOpensTheApp(t *testing.T) {
 				t.Fatalf("run: %v", err)
 			}
 
-			if !call.called || call.opts.start != tt.want || call.opts.dbPath != db {
+			if !call.called || call.opts.start != tt.want || call.opts.dbPath != db || call.opts.maxNew != tui.DefaultMaxNew {
 				t.Errorf("startApp called=%v with %+v, want start %v on %s", call.called, call.opts, tt.want, db)
 			}
 		})
+	}
+}
+
+func TestRunNewFlagCapsNewCards(t *testing.T) {
+	call := fakeApp(t)
+
+	if err := run([]string{"--db", filepath.Join(t.TempDir(), "teacher.db"), "--new", "5", "review"}, &bytes.Buffer{}); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+
+	if call.opts.maxNew != 5 || call.opts.start != tui.Review {
+		t.Errorf("startApp called with %+v, want maxNew 5 on Review", call.opts)
+	}
+}
+
+func TestLoadCardsReadsBothDirections(t *testing.T) {
+	db := filepath.Join(t.TempDir(), "teacher.db")
+	bank := "../../internal/importer/testdata/vocabulary-bank.md"
+	if err := run([]string{"--db", db, "import", bank}, &bytes.Buffer{}); err != nil {
+		t.Fatalf("import: %v", err)
+	}
+	st, err := openStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	cards, err := loadCards(context.Background(), st)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dirs := map[domain.Direction]int{}
+	for _, c := range cards {
+		dirs[c.Direction]++
+	}
+	if dirs[domain.Recognition] == 0 || dirs[domain.Recognition] != dirs[domain.Production] {
+		t.Errorf("loaded %v, want every word in both directions", dirs)
 	}
 }
 
@@ -105,6 +145,7 @@ func TestRunUsageErrors(t *testing.T) {
 		{name: "review with extra args", args: []string{"review", "now"}, wantErr: "usage"},
 		{name: "unknown command", args: []string{"dance"}, wantErr: `unknown command "dance"`},
 		{name: "import without path", args: []string{"import"}, wantErr: "usage"},
+		{name: "negative new cap", args: []string{"--new", "-1"}, wantErr: "--new"},
 		{name: "import missing file", args: []string{"import", "does-not-exist.md"}, wantErr: "does-not-exist.md"},
 	}
 	for _, tt := range tests {

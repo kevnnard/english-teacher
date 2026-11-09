@@ -1,8 +1,8 @@
                          │                                                                                          │
    Home                  │  Recognize · English → Spanish                  1 / 5                                    │  Coach
  ▸ Review           ● 5  │                                                                                          │
-   Learn                 │  ╭──────────────────────────────────────────────────╮                                    │  Your history shows here during review.
-   Write                 │  │                                                  │                                    │
+   Learn                 │  ╭──────────────────────────────────────────────────╮                                    │  recognition
+   Write                 │  │                                                  │                                    │  seen 1 · ✓ 1 · ✗ 0
    Words              7  │  │                      hello                       │                                    │
    Stats                 │  │                     /həˈloʊ/                     │                                    │
                          │  │                                                  │                                    │
@@ -10,7 +10,7 @@
                          │  │  Hola                                            │                                    │
                          │  │  "Hello, how are you?"                           │                                    │
                          │  ╰──────────────────────────────────────────────────╯                                    │
-                         │    0-2 forgot   3 hard   4 good   5 easy                                                 │
+                         │    1 again   2 hard   3 good   4 easy                                                    │
                          │                                                                                          │
                          │                                                                                          │
                          │                                                                                          │
@@ -21,4 +21,4 @@
                          │                                                                                          │
                          │                                                                                          │
                          │                                                                                          │
- A1 │ 5 due                                                                                                             0-5 grade · esc home · ? help · c coach
+ A1 │ 5 due                                                                                                             1-4 grade · esc home · ? help · c coach

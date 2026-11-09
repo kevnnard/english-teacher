@@ -14,6 +14,9 @@ go build ./cmd/teacher
 # Open the app on Home, or straight on today's review.
 ./teacher
 ./teacher review
+
+# At most 5 never-reviewed words in this session (default 20).
+./teacher --new 5 review
 ```
 
 The database lives at `$XDG_DATA_HOME/english-teacher/teacher.db`
@@ -50,14 +53,46 @@ The `?` overlay shows the same list.
 | | `q` | quit on Home, back to Home elsewhere |
 | | `ctrl+c` | quit |
 | Home | `enter` | start the preselected action |
-| Review | `space` | reveal the answer |
-| | `0`–`5` | grade your recall: 0-2 forgot · 3 hard · 4 good · 5 easy |
-| | `enter` | back to Home when the session is done |
+| Review | `space` | reveal the answer (English → Spanish) |
+| | `1`–`4` | grade your recall: 1 again · 2 hard · 3 good · 4 easy |
+| | `enter` | check a typed answer (Spanish → English) |
+| | `u` | undo the last grade |
+| | `r` | review the session's mistakes again (dates don't move) |
 | Words | `/` | filter by word or meaning (`enter` keep · `esc` clear) |
 | | `↑` `↓` / `j` `k` | scroll |
 
-Cards are scheduled with SM-2: a failed card comes back tomorrow. Answers are
-saved as soon as you grade them.
+### Review
+
+Every word is studied in two directions, each with its own SM-2 schedule
+and ✓/✗ counters:
+
+- **Recognize** (English → Spanish): see the word, `space` to reveal the
+  meaning, then grade yourself 1–4.
+- **Produce** (Spanish → English): read the meaning and type the English.
+  It starts only once you have recognized the word **twice in a row**
+  (recognition repetitions ≥ 2): recognizing comes before producing.
+
+A typed answer is compared ignoring case, surrounding spaces and trailing
+punctuation:
+
+| Answer | Shown | Grades allowed |
+|---|---|---|
+| exact | ✓, graded *good* automatically | `4` upgrades to *easy*, `enter` next |
+| 1–2 letters off | ✗ almost, with a letter diff: `nice to me[a→e]t you` | `1` again · `2` hard |
+| anything else | ✗ and the right answer | `1` again |
+
+The grades map to SM-2 as again 1 · hard 3 · good 4 · easy 5, so "hard"
+still passes and "again" brings the card back tomorrow. Answers are saved as
+soon as you grade them; `u` takes the last grade back (in the database too)
+until you grade the next card. In a typing prompt every key is a letter, so
+`u` there types a "u".
+
+A session is every card due today plus at most 20 new words (`--new`). It
+ends with a summary: how many you reviewed and how long it took, up to three
+tricky words, and when the next review is. `r` replays the session's mistakes
+for practice without moving any review date. On wide terminals the coach
+panel shows your history with the card on screen: times seen, ✓/✗ and the
+last wrong answer you typed.
 
 ## Roadmap
 
@@ -71,8 +106,9 @@ saved as soon as you grade them.
 
 ```
 cmd/teacher/        CLI entry point
-internal/domain/    pure types: Card, Grade
-internal/srs/       SM-2 scheduler (pure, no I/O)
+internal/domain/    pure types: Card, Grade, Answer, Direction
+internal/srs/       SM-2 scheduler and session planning (pure, no I/O)
+internal/check/     typed-answer check and letter diff (pure)
 internal/importer/  imports english-master markdown data
 internal/store/     SQLite persistence
 internal/llm/       model clients (M3)

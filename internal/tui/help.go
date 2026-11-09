@@ -3,6 +3,8 @@ package tui
 import (
 	"fmt"
 	"strings"
+
+	"github.com/charmbracelet/x/ansi"
 )
 
 // helpSections is the text of the `?` overlay. The README keys table mirrors
@@ -24,9 +26,11 @@ var helpSections = []struct {
 		{"enter", "start the preselected action"},
 	}},
 	{"Review", [][2]string{
-		{"space", "reveal the answer"},
-		{"0–5", "grade your recall: 0-2 forgot · 3 hard · 4 good · 5 easy"},
-		{"enter", "back to Home when the session is done"},
+		{"space", "reveal the answer (English → Spanish)"},
+		{"1–4", "grade your recall: 1 again · 2 hard · 3 good · 4 easy"},
+		{"enter", "check a typed answer (Spanish → English)"},
+		{"u", "undo the last grade"},
+		{"r", "review the session's mistakes again (dates don't move)"},
 	}},
 	{"Words", [][2]string{
 		{"/", "filter by word or meaning (enter keep · esc clear)"},
@@ -48,8 +52,30 @@ func (a App) helpView() string {
 }
 
 // coachView is the coach panel's text. In M1 it only reflects the learner's
-// own history; tips and "use it today" need the LLM and arrive in M3.
+// own history with the card on screen; tips and "use it today" need the LLM
+// and arrive in M3.
 func (a App) coachView(w int) string {
 	r := a.st.chrome
-	return r.title.Render("Coach") + "\n\n" + r.label.Render("Your history shows here during review.")
+	title := r.title.Render("Coach") + "\n\n"
+	s := a.current()
+	if a.screen != Review || s.done() {
+		return title + r.label.Render("Your history shows here during review.")
+	}
+
+	c := a.cards[s.queue[s.pos]]
+	if s.phase == revealed || s.phase == checked {
+		// Show the history the card had when it came up, not after this grade.
+		if s.undo != nil && s.undo.pos == s.pos {
+			c = s.undo.before
+		}
+	}
+	seen := c.TimesCorrect + c.TimesFailed
+	lines := []string{
+		r.label.Render(c.Direction.String()),
+		r.value.Render(fmt.Sprintf("seen %d · ✓ %d · ✗ %d", seen, c.TimesCorrect, c.TimesFailed)),
+	}
+	if c.LastWrong != "" {
+		lines = append(lines, r.value.Render(ansi.Truncate(fmt.Sprintf("last: wrote %q", c.LastWrong), w, "…")))
+	}
+	return title + strings.Join(lines, "\n")
 }
