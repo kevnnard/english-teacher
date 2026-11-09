@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/kevnnard/english-teacher/internal/tui"
 )
 
 func TestDefaultDBPath(t *testing.T) {
@@ -51,13 +53,56 @@ func TestRunImportTwiceDoesNotDuplicate(t *testing.T) {
 	}
 }
 
+// fakeApp replaces startApp for one test and records how it was called.
+func fakeApp(t *testing.T) *appCall {
+	t.Helper()
+	call := &appCall{}
+	orig := startApp
+	startApp = func(opts appOptions) error {
+		call.opts, call.called = opts, true
+		return nil
+	}
+	t.Cleanup(func() { startApp = orig })
+	return call
+}
+
+type appCall struct {
+	opts   appOptions
+	called bool
+}
+
+func TestRunOpensTheApp(t *testing.T) {
+	db := filepath.Join(t.TempDir(), "teacher.db")
+	tests := []struct {
+		name string
+		args []string
+		want tui.Screen
+	}{
+		{name: "no command opens Home", args: []string{"--db", db}, want: tui.Home},
+		{name: "review opens Review", args: []string{"--db", db, "review"}, want: tui.Review},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			call := fakeApp(t)
+
+			if err := run(tt.args, &bytes.Buffer{}); err != nil {
+				t.Fatalf("run: %v", err)
+			}
+
+			if !call.called || call.opts.start != tt.want || call.opts.dbPath != db {
+				t.Errorf("startApp called=%v with %+v, want start %v on %s", call.called, call.opts, tt.want, db)
+			}
+		})
+	}
+}
+
 func TestRunUsageErrors(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    []string
 		wantErr string
 	}{
-		{name: "no command", args: nil, wantErr: "usage"},
+		{name: "review with extra args", args: []string{"review", "now"}, wantErr: "usage"},
 		{name: "unknown command", args: []string{"dance"}, wantErr: `unknown command "dance"`},
 		{name: "import without path", args: []string{"import"}, wantErr: "usage"},
 		{name: "import missing file", args: []string{"import", "does-not-exist.md"}, wantErr: "does-not-exist.md"},

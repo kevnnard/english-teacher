@@ -1,140 +1,154 @@
-// Package tui holds the Bubbletea screens of the teacher.
 package tui
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/kevnnard/english-teacher/internal/domain"
 	"github.com/kevnnard/english-teacher/internal/srs"
 )
 
-// SaveFunc persists a card after the learner grades it.
-type SaveFunc func(domain.Card) error
+// cardWidth is the widest the review card gets, borders included.
+const cardWidth = 52
 
-// gradeHint explains the grading keys once the answer is visible.
-const gradeHint = "0-2 forgot · 3 hard · 4 good · 5 easy"
+// session is one review sitting: the cards due when the app opened.
+type session struct {
+	queue    []int // indices into App.cards, in review order
+	pos      int   // how many cards of queue are done
+	revealed bool  // whether the current card's answer is visible
 
-// ANSI colors 0–15 follow the terminal theme.
-var (
-	progressStyle = lipgloss.NewStyle().Faint(true)
-	wordStyle     = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("5"))
-	pronStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
-	meaningStyle  = lipgloss.NewStyle().Bold(true)
-	exampleStyle  = lipgloss.NewStyle().Italic(true)
-	hintStyle     = lipgloss.NewStyle().Faint(true)
-	errorStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
-	boxStyle      = lipgloss.NewStyle().Padding(1, 2)
-)
-
-// Model is the review screen: it walks through the due cards one by one.
-type Model struct {
-	cards    []domain.Card
-	current  int  // index of the card on screen
-	revealed bool // whether meaning and example are visible
-	save     SaveFunc
-	now      func() time.Time
-	err      error // a failed save stops the session
+	correct, failed int
 }
 
-// New returns a review session over cards. Each graded card is rescheduled
-// with SM-2 at now() and passed to save before moving on.
-func New(cards []domain.Card, save SaveFunc, now func() time.Time) Model {
-	return Model{cards: slices.Clone(cards), save: save, now: now}
-}
-
-// Init implements tea.Model; the review needs no startup command.
-func (m Model) Init() tea.Cmd {
-	return nil
-}
-
-// Err returns the save error that ended the session, if any.
-func (m Model) Err() error {
-	return m.err
-}
-
-func (m Model) done() bool {
-	return m.current >= len(m.cards)
-}
-
-// Update implements tea.Model: it reacts to key presses.
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	k, ok := msg.(tea.KeyPressMsg)
-	if !ok {
-		return m, nil
-	}
-	key := k.String()
-
-	switch {
-	case key == "ctrl+c" || key == "q":
-		return m, tea.Quit
-	case m.err != nil || m.done():
-		return m, tea.Quit // any key leaves the end screen
-	case !m.revealed:
-		if key == "space" {
-			m.revealed = true
+func newSession(cards []domain.Card, now time.Time) session {
+	var s session
+	for i, c := range cards {
+		if !c.Due.After(now) {
+			s.queue = append(s.queue, i)
 		}
-		return m, nil
 	}
-
-	// The answer is visible: only grades 0–5 do something.
-	if len(key) != 1 || key[0] < '0' || key[0] > '5' {
-		return m, nil
-	}
-	grade := domain.Grade(key[0] - '0')
-
-	// Saving synchronously is fine for a local SQLite file and guarantees
-	// nothing is lost if the learner quits right after answering.
-	card := srs.Review(m.cards[m.current], grade, m.now())
-	if err := m.save(card); err != nil {
-		m.err = err
-		return m, nil
-	}
-	m.cards[m.current] = card
-	m.current++
-	m.revealed = false
-	return m, nil
+	return s
 }
 
-// View implements tea.Model.
-func (m Model) View() tea.View {
-	var b strings.Builder
+func (s session) remaining() int { return len(s.queue) - s.pos }
+
+func (s session) done() bool { return s.pos >= len(s.queue) }
+
+func (a App) updateReview(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	s := &a.review
+	k := msg.String()
 	switch {
-	case m.err != nil:
-		b.WriteString(errorStyle.Render("Could not save your answer: "+m.err.Error()) + "\n\n")
-		b.WriteString(hintStyle.Render("press any key to quit"))
-	case m.done():
-		if n := len(m.cards); n > 0 {
-			fmt.Fprintf(&b, "Reviewed %d %s.\n\n", n, plural(n, "card", "cards"))
+	case s.done():
+		if k == "enter" {
+			a.screen = Home
 		}
-		b.WriteString("No cards due. See you tomorrow!\n\n")
-		b.WriteString(hintStyle.Render("press any key to quit"))
-	default:
-		c := m.cards[m.current]
-		b.WriteString(progressStyle.Render(fmt.Sprintf("%d/%d", m.current+1, len(m.cards))) + "\n\n")
-		b.WriteString(wordStyle.Render(c.Word) + "  " + pronStyle.Render(c.Pronunciation) + "\n\n")
-		if m.revealed {
-			b.WriteString(meaningStyle.Render(c.Meaning) + "\n")
-			b.WriteString(exampleStyle.Render(c.Example) + "\n\n")
-			b.WriteString(hintStyle.Render(gradeHint + " · q quit"))
+	case !s.revealed:
+		s.revealed = k == "space"
+	case len(k) == 1 && k[0] >= '0' && k[0] <= '5':
+		grade := domain.Grade(k[0] - '0')
+		idx := s.queue[s.pos]
+		// Saving synchronously is fine for a local SQLite file and guarantees
+		// nothing is lost if the learner quits right after answering.
+		card := srs.Review(a.cards[idx], grade, a.now())
+		if err := a.save(card); err != nil {
+			a.err = err
+			return a, nil
+		}
+		a.cards[idx] = card
+		if grade.Passed() {
+			s.correct++
 		} else {
-			b.WriteString(hintStyle.Render("space show answer · q quit"))
+			s.failed++
 		}
+		s.pos++
+		s.revealed = false
 	}
-
-	v := tea.NewView(boxStyle.Render(b.String()))
-	v.AltScreen = true
-	return v
+	return a, nil
 }
 
-func plural(n int, one, many string) string {
-	if n == 1 {
-		return one
+func (a App) reviewHints() []string {
+	switch s := a.review; {
+	case s.done():
+		return []string{"enter home", "? help"}
+	case !s.revealed:
+		return []string{"space reveal", "esc home", "? help"}
+	default:
+		return []string{"0-5 grade", "esc home", "? help"}
 	}
-	return many
+}
+
+func (a App) reviewView(w int) string {
+	r := a.st.main
+	s := a.review
+	if len(s.queue) == 0 {
+		return r.secondary.Render("No reviews due — come back tomorrow.")
+	}
+	if s.done() {
+		n := len(s.queue)
+		return r.target.Render("Done.") + " " + r.secondary.Render(fmt.Sprintf("%d reviewed.", n)) + "   " +
+			r.success.Render(fmt.Sprintf("✓ %d", s.correct)) + "   " + r.danger.Render(fmt.Sprintf("✗ %d", s.failed))
+	}
+
+	c := a.cards[s.queue[s.pos]]
+	width := min(cardWidth, w)
+	header := r.label.Render("Recognize · English → Spanish")
+	counter := r.label.Render(fmt.Sprintf("%d / %d", s.pos+1, len(s.queue)))
+	gap := max(width-ansi.StringWidth(header)-ansi.StringWidth(counter), 2)
+
+	var back []cardLine
+	if s.revealed {
+		back = []cardLine{{c.Meaning, r.value}, {`"` + c.Example + `"`, r.secondary.Italic(true)}}
+	}
+	hint := r.label.Render("space reveal")
+	if s.revealed {
+		hint = r.danger.Render("0-2") + " forgot   " + r.warning.Render("3") + " hard   " +
+			r.title.Render("4 good") + "   " + r.success.Render("5") + " easy"
+	}
+	return header + strings.Repeat(" ", gap) + counter + "\n\n" +
+		a.cardBox(width, []cardLine{{c.Word, r.target}, {c.Pronunciation, r.meta}}, back) + "\n" +
+		"  " + hint
+}
+
+// cardLine is one line of text on the review card with its style. Text is
+// kept plain until it has been wrapped or cut to fit.
+type cardLine struct {
+	text  string
+	style lipgloss.Style
+}
+
+// cardBox draws the review card: front lines centered on top, back lines
+// below a divider. Long back lines wrap inside the card; the front never
+// wraps, it is cut instead (DESIGN.md §8).
+func (a App) cardBox(width int, front, back []cardLine) string {
+	border := a.st.main.accent
+	inner := width - 2 // inside the borders
+	text := inner - 2*inset
+
+	row := func(left int, l cardLine) string {
+		s := strings.Repeat(" ", left) + l.style.Render(l.text)
+		return border.Render("│") + s + strings.Repeat(" ", max(inner-ansi.StringWidth(s), 0)) + border.Render("│")
+	}
+	rule := func(l, r string) string { return border.Render(l + strings.Repeat("─", inner) + r) }
+
+	lines := []string{rule("╭", "╮"), row(0, cardLine{})}
+	for _, f := range front {
+		f.text = ansi.Truncate(f.text, text, "…")
+		lines = append(lines, row((inner-ansi.StringWidth(f.text))/2, f))
+	}
+	lines = append(lines, row(0, cardLine{}), rule("├", "┤"))
+	if len(back) == 0 {
+		back = []cardLine{{}, {}} // keep the card the same height before the reveal
+	}
+	for _, b := range back {
+		for _, l := range strings.Split(ansi.Wordwrap(b.text, text, ""), "\n") {
+			lines = append(lines, row(inset, cardLine{ansi.Truncate(l, text, "…"), b.style}))
+		}
+	}
+	lines = append(lines, rule("╰", "╯"))
+	return strings.Join(lines, "\n")
 }

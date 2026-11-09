@@ -11,23 +11,53 @@ go build ./cmd/teacher
 # Re-importing never duplicates cards or resets your review schedule.
 ./teacher import ~/Projects/english-master/progress/vocabulary-bank.md
 
-# Review the cards due today.
+# Open the app on Home, or straight on today's review.
+./teacher
 ./teacher review
 ```
-
-In `review`, each card shows the word and its pronunciation first:
-
-| Key | Action |
-|---|---|
-| `space` | show the meaning and an example |
-| `0`–`5` | grade your recall: 0-2 forgot · 3 hard · 4 good · 5 easy |
-| `q` | quit (answers already given are saved) |
-
-Cards are scheduled with SM-2: a grade below 3 brings the card back tomorrow.
 
 The database lives at `$XDG_DATA_HOME/english-teacher/teacher.db`
 (`~/.local/share/english-teacher/teacher.db` if unset). Use `--db path` before
 the command to pick another file, e.g. `./teacher --db /tmp/test.db review`.
+
+## The app
+
+Screens: **Home** (one preselected next action), **Review** (cards due today),
+**Words** (every word with its status), **Stats**, and **Learn** / **Write**
+(coming in M3). The layout follows the terminal width:
+
+| Width | Layout |
+|---|---|
+| < 100 columns | one pane, progress line on top |
+| 100–139 columns | navigation rail + content |
+| ≥ 140 columns | rail + content + coach panel |
+
+The bottom row is the status bar: your level, cards still due and this
+session's ✓/✗ on the left, the keys for the current screen on the right.
+Word status is always a glyph plus a word: `● due`, `◐ learning`, `✓ known`, `○ new`.
+
+### Keys
+
+The `?` overlay shows the same list.
+
+| Where | Key | Action |
+|---|---|---|
+| everywhere | `tab` / `shift+tab` | next / previous screen |
+| | `:` | command palette: type a screen name, `enter` to go |
+| | `?` | show / hide help |
+| | `c` | show / hide the coach (140+ columns) |
+| | `esc` | back to Home |
+| | `q` | quit on Home, back to Home elsewhere |
+| | `ctrl+c` | quit |
+| Home | `enter` | start the preselected action |
+| Review | `space` | reveal the answer |
+| | `0`–`5` | grade your recall: 0-2 forgot · 3 hard · 4 good · 5 easy |
+| | `enter` | back to Home when the session is done |
+| Words | `/` | filter by word or meaning (`enter` keep · `esc` clear) |
+| | `↑` `↓` / `j` `k` | scroll |
+
+Cards are scheduled with SM-2: a failed card comes back tomorrow. Answers are
+saved as soon as you grade them.
 
 ## Roadmap
 
