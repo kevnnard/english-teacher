@@ -192,3 +192,23 @@ func TestUndoAfterMidnightTakesBackTheDayOfTheGrade(t *testing.T) {
 	}
 	mustNotContain(t, statusBar(a), "streak")
 }
+
+func TestHomeStreakLineGuidesEveryState(t *testing.T) {
+	old := domain.Day{Date: domain.Date{Year: 2026, Month: time.August, Day: 14}, Activities: []string{"Lesson 1"}}
+	tests := []struct {
+		name string
+		days []domain.Day
+		want string
+	}{
+		{"never studied", nil, "Streak  0 days — review today to start one"},
+		{"broken streak", []domain.Day{old}, "Streak  0 days · last studied 14 Aug — review today to start one"},
+		{"alive from yesterday", []domain.Day{studiedDay(-1), studiedDay(-2)}, "Streak  2 days — review today to keep it"},
+		{"done today", []domain.Day{studiedDay(0), studiedDay(-1), studiedDay(-5), studiedDay(-6), studiedDay(-7)}, "Streak  2 days ✓ today · best 3"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a, _ := newProgressApp(t, domain.NewProfile(), tt.days, &studyLog{}, Home)
+			mustContain(t, pageText(a), tt.want)
+		})
+	}
+}

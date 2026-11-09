@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 
 	"github.com/kevnnard/english-teacher/internal/domain"
@@ -47,9 +48,44 @@ func (a App) homeView() string {
 		r.label.Render(fmt.Sprintf("%-12s", act.detail)) + r.accent.Render("enter") + "\n\n")
 
 	b.WriteString(r.label.Render(fmt.Sprintf("%-8s", "Words")) + a.statusCounts() + "\n\n")
+	b.WriteString(r.label.Render(fmt.Sprintf("%-8s", "Streak")) + a.streakLine() + "\n")
 	b.WriteString(r.label.Render(fmt.Sprintf("%-8s", "Today")) + a.goalLine() + "\n")
 	b.WriteString(r.label.Render(fmt.Sprintf("%-8s", "Week")) + a.weekRow())
 	return b.String()
+}
+
+// streakLine says where the streak stands and what to do about it, so a
+// zero streak still points at the next step instead of hiding.
+func (a App) streakLine() string {
+	r := a.st.main
+	st := a.streak()
+	count := r.value.Render(days(st.Current))
+	switch {
+	case st.StudiedToday:
+		line := count + " " + r.success.Render("✓ today")
+		if st.Longest > st.Current {
+			line += r.label.Render(" · best " + strconv.Itoa(st.Longest))
+		}
+		return line
+	case st.Current > 0:
+		return count + r.secondary.Render(" — review today to keep it")
+	}
+	if last, ok := a.lastStudied(); ok {
+		count += r.label.Render(fmt.Sprintf(" · last studied %d %s", last.Day, last.Month.String()[:3]))
+	}
+	return count + r.secondary.Render(" — review today to start one")
+}
+
+// lastStudied is the most recent day that counts for the streak.
+func (a App) lastStudied() (domain.Date, bool) {
+	var last domain.Date
+	found := false
+	for _, d := range a.days {
+		if d.Studied() && (!found || last.Before(d.Date)) {
+			last, found = d.Date, true
+		}
+	}
+	return last, found
 }
 
 // goalBarWidth is how many cells the daily goal bar takes.
