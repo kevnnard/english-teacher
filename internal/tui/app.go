@@ -16,6 +16,11 @@ import (
 // SaveFunc persists a card after the learner grades it.
 type SaveFunc func(domain.Card) error
 
+// RecordFunc adds a delta to the learner's study day, like
+// store.RecordStudy: counts are summed, and a negative count takes back
+// an undone grade.
+type RecordFunc func(domain.Day) error
+
 // Screen identifies one page of the app.
 type Screen int
 
@@ -42,6 +47,10 @@ type Config struct {
 	Now    func() time.Time // injected clock
 	Start  Screen           // the screen to open on
 	MaxNew int              // most never-reviewed cards per session
+
+	Profile domain.Profile // the zero profile means a new A1 learner
+	Days    []domain.Day   // recorded study days, for the streak and the week
+	Record  RecordFunc     // called after each grade and undo; nil records nothing
 }
 
 // DefaultMaxNew is the usual cap on new cards in one session.
@@ -52,6 +61,12 @@ type App struct {
 	cards []domain.Card
 	save  SaveFunc
 	now   func() time.Time
+
+	profile   domain.Profile
+	days      []domain.Day
+	record    RecordFunc
+	lastStudy time.Time     // when the learner last graded a card
+	studied   time.Duration // study time not yet recorded as a whole minute
 
 	screen        Screen
 	width, height int // terminal size; zero until the first WindowSizeMsg
@@ -70,14 +85,25 @@ type App struct {
 func NewApp(cfg Config) App {
 	cards := slices.Clone(cfg.Cards)
 	queue := srs.PlanSession(cards, cfg.Now(), cfg.MaxNew)
+	profile := cfg.Profile
+	if profile.Level == "" {
+		profile.Level = domain.A1
+	}
+	if profile.DailyGoalMinutes <= 0 {
+		profile.DailyGoalMinutes = domain.DefaultDailyGoalMinutes
+	}
 	return App{
-		cards:  cards,
-		save:   cfg.Save,
-		now:    cfg.Now,
-		screen: cfg.Start,
-		st:     newStyles(true), // until the terminal reports its background
-		notes:  true,
-		review: newSession(cards, queue, false, cfg.Now()),
+		cards:     cards,
+		save:      cfg.Save,
+		now:       cfg.Now,
+		profile:   profile,
+		days:      slices.Clone(cfg.Days),
+		record:    cfg.Record,
+		lastStudy: cfg.Now(),
+		screen:    cfg.Start,
+		st:        newStyles(true), // until the terminal reports its background
+		notes:     true,
+		review:    newSession(cards, queue, false, cfg.Now()),
 	}
 }
 

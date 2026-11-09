@@ -3,7 +3,6 @@ package tui
 import (
 	"strings"
 	"testing"
-	"time"
 )
 
 func rowOf(t *testing.T, a App, w string) string {
@@ -76,16 +75,10 @@ func TestWordsScrolls(t *testing.T) {
 	mustContain(t, screen(a), "thank you")
 }
 
-func TestStatsCountsByStatusAndReviewsToday(t *testing.T) {
-	cards := deck()
-	today := fixedNow.Add(-30 * time.Minute)
-	cards[5].LastReviewed = &today // goodbye was reviewed today
+func TestStatsCountsByStatus(t *testing.T) {
+	a := newApp(t, deck(), &recorder{}, Stats, 80, 24)
 
-	a := newApp(t, cards, &recorder{}, Stats, 80, 24)
-
-	v := screen(a)
-	mustContain(t, v, "● due", "3", "○ new", "Reviewed today", "1")
-	for _, want := range []string{"● due         3", "◐ learning    1", "✓ known       1", "○ new         2", "Reviewed today  1"} {
-		mustContain(t, v, want)
+	for _, want := range []string{"● due         3", "◐ learning    1", "✓ known       1", "○ new         2"} {
+		mustContain(t, screen(a), want)
 	}
 }

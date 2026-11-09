@@ -75,3 +75,27 @@ func DayOf(days []domain.Day, date domain.Date) domain.Day {
 	}
 	return domain.Day{Date: date}
 }
+
+// Add folds delta into its day the way the store does: minutes and counts
+// are summed but never go below zero, and new activities are appended.
+// It returns the updated days; a missing day is created.
+func Add(days []domain.Day, delta domain.Day) []domain.Day {
+	days = slices.Clone(days)
+	i := slices.IndexFunc(days, func(d domain.Day) bool { return d.Date == delta.Date })
+	if i < 0 {
+		days = append(days, domain.Day{Date: delta.Date})
+		i = len(days) - 1
+	}
+	d := &days[i]
+	d.Minutes = max(0, d.Minutes+delta.Minutes)
+	d.Reviews = max(0, d.Reviews+delta.Reviews)
+	d.Correct = max(0, d.Correct+delta.Correct)
+	d.Failed = max(0, d.Failed+delta.Failed)
+	d.Activities = slices.Clone(d.Activities)
+	for _, a := range delta.Activities {
+		if !slices.Contains(d.Activities, a) {
+			d.Activities = append(d.Activities, a)
+		}
+	}
+	return days
+}

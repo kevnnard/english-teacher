@@ -74,3 +74,25 @@ func TestDayOfFindsOrCreatesToday(t *testing.T) {
 		t.Errorf("DayOf(nil) = %+v, want an empty today", d)
 	}
 }
+
+func TestAddMergesIntoTheDay(t *testing.T) {
+	days := []domain.Day{{Date: today.AddDays(-1), Reviews: 2}, {Date: today, Reviews: 1, Correct: 1}}
+
+	days = Add(days, domain.Day{Date: today, Minutes: 2, Reviews: 1, Failed: 1, Activities: []string{"Reading"}})
+	days = Add(days, domain.Day{Date: today, Reviews: -5, Activities: []string{"Reading"}})
+
+	got := DayOf(days, today)
+	if got.Reviews != 0 || got.Correct != 1 || got.Failed != 1 || got.Minutes != 2 || len(got.Activities) != 1 {
+		t.Errorf("today = %+v", got)
+	}
+	if DayOf(days, today.AddDays(-1)).Reviews != 2 {
+		t.Error("other days must not change")
+	}
+}
+
+func TestAddCreatesAMissingDay(t *testing.T) {
+	days := Add(nil, domain.Day{Date: today, Reviews: 1})
+	if len(days) != 1 || days[0].Reviews != 1 {
+		t.Errorf("days = %+v", days)
+	}
+}

@@ -92,3 +92,9 @@ func TestNewProfileDefaults(t *testing.T) {
 		t.Errorf("default goal = %d, want 20", DefaultDailyGoalMinutes)
 	}
 }
+
+func TestDateWeekday(t *testing.T) {
+	if got := (Date{2026, time.November, 9}).Weekday(); got != time.Monday {
+		t.Errorf("Weekday = %v, want Monday", got)
+	}
+}

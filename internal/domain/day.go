@@ -45,6 +45,11 @@ func (d Date) Before(o Date) bool {
 	return d.time().Before(o.time())
 }
 
+// Weekday is the day of the week d falls on.
+func (d Date) Weekday() time.Weekday {
+	return d.time().Weekday()
+}
+
 // time is midnight UTC of d, only used for calendar arithmetic.
 func (d Date) time() time.Time {
 	return time.Date(d.Year, d.Month, d.Day, 0, 0, 0, 0, time.UTC)

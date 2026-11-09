@@ -318,6 +318,33 @@ func loadCards(ctx context.Context, st *store.Store) ([]domain.Card, error) {
 	return all, nil
 }
 
+// appConfig loads what the app needs from the store and wires saving and
+// study recording back to it.
+func appConfig(ctx context.Context, st *store.Store, opts appOptions) (tui.Config, error) {
+	cards, err := loadCards(ctx, st)
+	if err != nil {
+		return tui.Config{}, err
+	}
+	profile, err := st.Profile(ctx)
+	if err != nil {
+		return tui.Config{}, err
+	}
+	days, err := st.Days(ctx)
+	if err != nil {
+		return tui.Config{}, err
+	}
+	return tui.Config{
+		Cards:   cards,
+		Save:    func(c domain.Card) error { return st.SaveCard(ctx, c) },
+		Now:     time.Now,
+		Start:   opts.start,
+		MaxNew:  opts.maxNew,
+		Profile: profile,
+		Days:    days,
+		Record:  func(d domain.Day) error { return st.RecordStudy(ctx, d) },
+	}, nil
+}
+
 // startApp runs the TUI. It is a variable so tests can check how run calls
 // it without opening a terminal.
 var startApp = runApp
@@ -329,19 +356,11 @@ func runApp(opts appOptions) error {
 	}
 	defer st.Close()
 
-	ctx := context.Background()
-	cards, err := loadCards(ctx, st)
+	cfg, err := appConfig(context.Background(), st, opts)
 	if err != nil {
 		return err
 	}
-
-	app := tui.NewApp(tui.Config{
-		Cards:  cards,
-		Save:   func(c domain.Card) error { return st.SaveCard(ctx, c) },
-		Now:    time.Now,
-		Start:  opts.start,
-		MaxNew: opts.maxNew,
-	})
+	app := tui.NewApp(cfg)
 	final, err := tea.NewProgram(app).Run()
 	if err != nil {
 		return err

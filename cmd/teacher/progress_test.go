@@ -181,3 +181,30 @@ func TestSetErrorsLeaveTheProfileUnchanged(t *testing.T) {
 		}
 	}
 }
+
+func TestAppConfigLoadsProfileDaysAndRecords(t *testing.T) {
+	db := filepath.Join(t.TempDir(), "teacher.db")
+	if err := run([]string{"--db", db, "import", progressDir(t, true)}, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	run([]string{"--db", db, "set", "name", "Kevin"}, &bytes.Buffer{})
+	st := openDB(t, db)
+	ctx := context.Background()
+
+	cfg, err := appConfig(ctx, st, appOptions{dbPath: db, maxNew: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if cfg.Profile.Name != "Kevin" || cfg.Profile.Level != domain.A1 || len(cfg.Days) != 2 || len(cfg.Cards) != 6 {
+		t.Errorf("cfg = profile %+v, %d days, %d cards", cfg.Profile, len(cfg.Days), len(cfg.Cards))
+	}
+	nov9 := domain.Date{Year: 2026, Month: 11, Day: 9}
+	if err := cfg.Record(domain.Day{Date: nov9, Reviews: 1}); err != nil {
+		t.Fatal(err)
+	}
+	days, _ := st.Days(ctx)
+	if len(days) != 3 || days[2].Reviews != 1 {
+		t.Errorf("Record did not reach the store: %+v", days)
+	}
+}

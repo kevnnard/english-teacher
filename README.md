@@ -7,9 +7,16 @@ A personal English teacher in the terminal, written in Go.
 ```sh
 go build ./cmd/teacher
 
-# Import (or re-import) the english-master vocabulary bank.
-# Re-importing never duplicates cards or resets your review schedule.
+# Import (or re-import) the whole english-master progress folder:
+# vocabulary-bank.md, plus level.md, streak.md and daily-log.md when present.
+# Re-importing never duplicates cards or days, never resets a review schedule,
+# and keeps the name and goal you set. A single bank file also works.
+./teacher import ~/Projects/english-master/progress
 ./teacher import ~/Projects/english-master/progress/vocabulary-bank.md
+
+# Your name (Home greets you with it) and your daily goal in minutes (default 20).
+./teacher set name Kevin
+./teacher set goal 25
 
 # Open the app on Home, or straight on today's review.
 ./teacher
@@ -32,8 +39,17 @@ the page ("Page 3 of 26" during a review) and the screen tabs; a margin line
 runs down the left (6 columns in from the edge on terminals 100+ columns
 wide, 2 on narrower ones) and the text never gets wider than 76 columns.
 
-The bottom row is the status bar: your level, cards still due and this
-session's ✓/✗ on the left, the keys for the current screen on the right.
+The bottom row is the status bar: your level, cards still due, this
+session's ✓/✗ and your streak on the left, the keys for the current screen on
+the right.
+
+Home shows today's study time against your daily goal and the last seven days
+(`●` studied, `○` not). Stats adds your current and longest streak and a row per
+day with minutes, cards and ✓/✗. A day counts for the streak when you grade at
+least one card or finish an activity; time alone does not. The streak survives
+until the end of the day after your last study day. Study time is the time
+between grades, at most 2 minutes per card, so leaving the app open does not
+count.
 Word status is always a glyph plus a word: `● due`, `◐ learning`, `✓ known`, `○ new`.
 
 ### Keys
@@ -94,7 +110,7 @@ back if you grade it good, and the last wrong answer you typed.
 ## Roadmap
 
 - **M1** — Vocabulary review TUI with spaced repetition (SM-2), importing the existing vocabulary bank. No AI.
-- **M2** — Streak, CEFR level and daily log in SQLite.
+- **M2** — Streak, CEFR level, daily goal and daily log in SQLite. Done.
 - **M3** — LLM teacher: lesson of the day and homework review, with one model per capability (text, speech, resource search).
 - **M4** — Free conversation practice and quizzes.
 - **M5** — Voice: speech-to-text and pronunciation practice.
@@ -106,6 +122,7 @@ cmd/teacher/        CLI entry point
 internal/domain/    pure types: Card, Grade, Answer, Direction
 internal/srs/       SM-2 scheduler and session planning (pure, no I/O)
 internal/check/     typed-answer check and letter diff (pure)
+internal/progress/  streak, week and daily totals (pure, no I/O)
 internal/importer/  imports english-master markdown data
 internal/store/     SQLite persistence
 internal/llm/       model clients (M3)

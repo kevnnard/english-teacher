@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/kevnnard/english-teacher/internal/domain"
+	"github.com/kevnnard/english-teacher/internal/progress"
 )
 
 // minutesPerCard is the time estimate behind "~N min" on Home.
@@ -36,7 +37,7 @@ func (a App) homeAction() homeAction {
 func (a App) homeView() string {
 	r := a.st.main
 	var b strings.Builder
-	b.WriteString(r.target.Render(greeting(a.now().Hour())) + "\n\n")
+	b.WriteString(r.target.Render(greeting(a.now().Hour(), a.profile.Name)) + "\n\n")
 
 	act := a.homeAction()
 	if act.target != Review {
@@ -45,8 +46,48 @@ func (a App) homeView() string {
 	b.WriteString(r.accent.Render("▸ ") + r.target.Render(fmt.Sprintf("%-24s", act.label)) +
 		r.label.Render(fmt.Sprintf("%-12s", act.detail)) + r.accent.Render("enter") + "\n\n")
 
-	b.WriteString(r.label.Render("Words") + "  " + a.statusCounts())
+	b.WriteString(r.label.Render(fmt.Sprintf("%-8s", "Words")) + a.statusCounts() + "\n\n")
+	b.WriteString(r.label.Render(fmt.Sprintf("%-8s", "Today")) + a.goalLine() + "\n")
+	b.WriteString(r.label.Render(fmt.Sprintf("%-8s", "Week")) + a.weekRow())
 	return b.String()
+}
+
+// goalBarWidth is how many cells the daily goal bar takes.
+const goalBarWidth = 10
+
+// goalLine is "12 of 25 min  ▰▰▰▰▱▱▱▱▱▱": today's study time against the goal.
+func (a App) goalLine() string {
+	r := a.st.main
+	done := progress.DayOf(a.days, a.today()).Minutes
+	goal := a.profile.DailyGoalMinutes
+	filled := min(done*goalBarWidth/goal, goalBarWidth)
+	bar := r.success.Render(strings.Repeat("▰", filled)) + r.label.Render(strings.Repeat("▱", goalBarWidth-filled))
+	text := r.value.Render(fmt.Sprintf("%d of %d min", done, goal))
+	if done >= goal {
+		text += r.success.Render("  goal met")
+	}
+	return text + "  " + bar
+}
+
+// weekRow is "Tu ○  We ●  …  Mo ●": the last seven days, today last. The
+// filled dot means the day counts for the streak.
+func (a App) weekRow() string {
+	r := a.st.main
+	week := progress.Week(a.days, a.today())
+	parts := make([]string, len(week))
+	for i, d := range week {
+		dot := r.label.Render("○")
+		if d.Studied() {
+			dot = r.success.Render("●")
+		}
+		parts[i] = r.secondary.Render(weekday(d.Date)) + " " + dot
+	}
+	return strings.Join(parts, "  ")
+}
+
+// weekday is the two-letter name of the day d falls on, like "Mo".
+func weekday(d domain.Date) string {
+	return d.Weekday().String()[:2]
 }
 
 // statusCounts is "● 3 due   ◐ 1 learning   ✓ 1 known   ○ 2 new".
@@ -87,15 +128,22 @@ func (a App) glyph(s domain.Status) string {
 	}
 }
 
-func greeting(hour int) string {
+// greeting is "Good evening." or, when the learner set a name,
+// "Good evening, Kevin.".
+func greeting(hour int, name string) string {
+	var g string
 	switch {
 	case hour < 12:
-		return "Good morning."
+		g = "Good morning"
 	case hour < 18:
-		return "Good afternoon."
+		g = "Good afternoon"
 	default:
-		return "Good evening."
+		g = "Good evening"
 	}
+	if name != "" {
+		g += ", " + name
+	}
+	return g + "."
 }
 
 func plural(n int, one, many string) string {

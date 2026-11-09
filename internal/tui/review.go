@@ -194,6 +194,10 @@ func (a *App) grade(ans domain.Answer, next bool) tea.Cmd {
 			return nil
 		}
 		a.cards[idx] = card
+		a.recordGrade(!failed)
+		if a.err != nil {
+			return nil
+		}
 	}
 
 	step := &undoStep{pos: s.pos, before: before, failed: failed}
@@ -255,6 +259,10 @@ func (a *App) undo() tea.Cmd {
 		return nil
 	}
 	a.cards[idx] = u.before
+	a.recordUndo(u.failed)
+	if a.err != nil {
+		return nil
+	}
 	if u.failed {
 		s.failed--
 	} else {

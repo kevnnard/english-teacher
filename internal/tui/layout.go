@@ -162,10 +162,13 @@ func (a App) pageContext() string {
 func (a App) statusBar(w int) string {
 	r := a.st.chrome
 	sep := r.label.Render("  ·  ")
-	facts := []string{r.accent.Render("A1"), r.value.Render(fmt.Sprintf("%d due", a.review.remaining()))}
+	facts := []string{r.accent.Render(a.profile.Level.String()), r.value.Render(fmt.Sprintf("%d due", a.review.remaining()))}
 	if s := a.review; s.correct+s.failed > 0 {
 		facts = append(facts, r.success.Render(fmt.Sprintf("✓ %d", s.correct))+r.base.Render(" ")+
 			r.danger.Render(fmt.Sprintf("✗ %d", s.failed)))
+	}
+	if n := a.streak().Current; n > 0 {
+		facts = append(facts, r.warning.Render(fmt.Sprintf("%d-day streak", n)))
 	}
 	left := r.base.Render(" ") + strings.Join(facts, sep)
 
