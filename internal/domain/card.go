@@ -9,12 +9,19 @@ import (
 // DefaultEaseFactor is the SM-2 ease factor every new card starts with.
 const DefaultEaseFactor = 2.5
 
-// Card is one vocabulary item together with its spaced-repetition schedule.
+// Card is one vocabulary item studied in one direction, together with the
+// spaced-repetition schedule of that direction. The same word has one Card
+// per direction; Word is the identity, compared case-insensitively.
 type Card struct {
 	Word          string
 	Pronunciation string
 	Meaning       string
 	Example       string
+
+	// Direction is Recognition for new cards (the zero value).
+	Direction Direction
+	// LastWrong is the last wrong answer the learner typed in production, or "".
+	LastWrong string
 
 	TimesCorrect int
 	TimesFailed  int

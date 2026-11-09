@@ -110,7 +110,7 @@ func runImport(dbPath, bankPath string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	all, err := st.ListCards(ctx)
+	all, err := st.ListCards(ctx, domain.Recognition) // one card per word
 	if err != nil {
 		return err
 	}
@@ -136,7 +136,7 @@ func runApp(opts appOptions) error {
 	defer st.Close()
 
 	ctx := context.Background()
-	cards, err := st.ListCards(ctx)
+	cards, err := st.ListCards(ctx, domain.Recognition)
 	if err != nil {
 		return err
 	}

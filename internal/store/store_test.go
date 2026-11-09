@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"path/filepath"
 	"testing"
@@ -41,7 +42,7 @@ func TestUpsertAndList(t *testing.T) {
 		t.Errorf("result = %+v, want 2 added, 0 updated", res)
 	}
 
-	got, err := s.ListCards(ctx)
+	got, err := s.ListCards(ctx, domain.Recognition)
 	if err != nil {
 		t.Fatalf("ListCards: %v", err)
 	}
@@ -79,7 +80,7 @@ func TestUpsertIsCaseInsensitiveAndIdempotent(t *testing.T) {
 		t.Errorf("re-import result = %+v, want 0 added, 2 updated", res)
 	}
 
-	got, _ := s.ListCards(ctx)
+	got, _ := s.ListCards(ctx, domain.Recognition)
 	if len(got) != 2 {
 		t.Fatalf("after re-import got %d cards, want 2", len(got))
 	}
@@ -110,7 +111,7 @@ func TestReimportKeepsSchedule(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, _ := s.ListCards(ctx)
+	got, _ := s.ListCards(ctx, domain.Recognition)
 	c := got[0]
 	if c.Meaning != "Hola!" {
 		t.Errorf("Meaning = %q, want content refreshed to %q", c.Meaning, "Hola!")
@@ -140,7 +141,7 @@ func TestSaveCardRoundTrip(t *testing.T) {
 		t.Fatalf("SaveCard: %v", err)
 	}
 
-	got, _ := s.ListCards(ctx)
+	got, _ := s.ListCards(ctx, domain.Recognition)
 	g := got[0]
 	if g.Word != "hi" || g.EaseFactor != 1.3 || g.IntervalDays != 1 || g.TimesFailed != 3 {
 		t.Errorf("got %+v", g)
@@ -178,8 +179,141 @@ func TestOpenTwiceKeepsData(t *testing.T) {
 		t.Fatalf("second Open: %v", err)
 	}
 	defer s.Close()
-	got, err := s.ListCards(ctx)
+	got, err := s.ListCards(ctx, domain.Recognition)
 	if err != nil || len(got) != 1 {
 		t.Errorf("after reopen got %d cards, err %v; want 1", len(got), err)
+	}
+}
+
+// openV1 creates a database at the first schema version, as written by the
+// app before directions existed, with one studied card.
+func openV1(t *testing.T, path string, due, reviewed time.Time) {
+	t.Helper()
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	for _, q := range []string{
+		migrations[0],
+		`PRAGMA user_version = 1`,
+	} {
+		if _, err := db.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err = db.Exec(`INSERT INTO cards (word, pronunciation, meaning, example, times_correct, times_failed,
+		last_reviewed, ease_factor, interval_days, repetitions, due)
+		VALUES ('hello', '/h/', 'Hola', 'Hello!', 4, 1, ?, 2.6, 6, 2, ?)`,
+		reviewed.Format(timeLayout), due.Format(timeLayout))
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMigrationKeepsProgressAsRecognition(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "teacher.db")
+	due := time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC)
+	reviewed := time.Date(2026, 11, 9, 21, 0, 0, 0, time.UTC)
+	openV1(t, path, due, reviewed)
+
+	s, err := Open(path)
+	if err != nil {
+		t.Fatalf("Open (migrate): %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+
+	rec, err := s.ListCards(ctx, domain.Recognition)
+	if err != nil || len(rec) != 1 {
+		t.Fatalf("recognition cards = %d, err %v; want 1", len(rec), err)
+	}
+	c := rec[0]
+	if c.Word != "hello" || c.Meaning != "Hola" || c.Direction != domain.Recognition {
+		t.Errorf("recognition card = %+v", c)
+	}
+	if c.TimesCorrect != 4 || c.TimesFailed != 1 || c.EaseFactor != 2.6 || c.IntervalDays != 6 ||
+		c.Repetitions != 2 || !c.Due.Equal(due) || c.LastReviewed == nil || !c.LastReviewed.Equal(reviewed) {
+		t.Errorf("progress lost in migration: %+v", c)
+	}
+
+	prod, err := s.ListCards(ctx, domain.Production)
+	if err != nil || len(prod) != 1 {
+		t.Fatalf("production cards = %d, err %v; want 1", len(prod), err)
+	}
+	p := prod[0]
+	if p.Word != "hello" || p.Direction != domain.Production || p.LastReviewed != nil ||
+		p.Repetitions != 0 || p.EaseFactor != domain.DefaultEaseFactor || !p.Due.IsZero() {
+		t.Errorf("production should start fresh: %+v", p)
+	}
+}
+
+func TestDirectionsHaveSeparateSchedules(t *testing.T) {
+	s := openTemp(t)
+	ctx := context.Background()
+	if _, err := s.UpsertCards(ctx, []domain.Card{card("hello", "Hola")}); err != nil {
+		t.Fatal(err)
+	}
+
+	reviewed := time.Date(2026, 11, 9, 21, 0, 0, 0, time.UTC)
+	p := card("hello", "Hola")
+	p.Direction = domain.Production
+	p.TimesFailed, p.IntervalDays, p.EaseFactor = 1, 1, 2.18
+	p.LastReviewed, p.Due = &reviewed, time.Date(2026, 11, 10, 0, 0, 0, 0, time.UTC)
+	p.LastWrong = "helo"
+	if err := s.SaveCard(ctx, p); err != nil {
+		t.Fatalf("SaveCard production: %v", err)
+	}
+
+	prod, _ := s.ListCards(ctx, domain.Production)
+	got := prod[0]
+	if got.TimesFailed != 1 || got.EaseFactor != 2.18 || !got.Due.Equal(p.Due) || got.LastWrong != "helo" {
+		t.Errorf("production card = %+v", got)
+	}
+	rec, _ := s.ListCards(ctx, domain.Recognition)
+	if r := rec[0]; r.TimesFailed != 0 || r.LastReviewed != nil || r.LastWrong != "" || !r.Due.IsZero() {
+		t.Errorf("saving production changed recognition: %+v", r)
+	}
+
+	// Saving again updates the same row instead of adding one.
+	p.LastWrong = "hallo"
+	if err := s.SaveCard(ctx, p); err != nil {
+		t.Fatal(err)
+	}
+	prod, _ = s.ListCards(ctx, domain.Production)
+	if len(prod) != 1 || prod[0].LastWrong != "hallo" {
+		t.Errorf("after second save: %+v", prod)
+	}
+}
+
+func TestReimportKeepsProductionSchedule(t *testing.T) {
+	s := openTemp(t)
+	ctx := context.Background()
+	if _, err := s.UpsertCards(ctx, []domain.Card{card("hello", "Hola")}); err != nil {
+		t.Fatal(err)
+	}
+	p := card("hello", "Hola")
+	p.Direction, p.Repetitions, p.IntervalDays, p.LastWrong = domain.Production, 2, 6, "helo"
+	if err := s.SaveCard(ctx, p); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := s.UpsertCards(ctx, []domain.Card{card("HELLO", "Hola!")}); err != nil {
+		t.Fatal(err)
+	}
+
+	prod, _ := s.ListCards(ctx, domain.Production)
+	if c := prod[0]; c.Repetitions != 2 || c.IntervalDays != 6 || c.LastWrong != "helo" || c.Meaning != "Hola!" {
+		t.Errorf("re-import reset production: %+v", c)
+	}
+}
+
+func TestSaveCardUnknownWordInProduction(t *testing.T) {
+	s := openTemp(t)
+	c := card("ghost", "Fantasma")
+	c.Direction = domain.Production
+
+	if err := s.SaveCard(context.Background(), c); !errors.Is(err, ErrNotFound) {
+		t.Errorf("SaveCard error = %v, want ErrNotFound", err)
 	}
 }
