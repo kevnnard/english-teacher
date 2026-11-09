@@ -5,6 +5,9 @@
 //	teacher [--db path] [--new n]                        open the app on Home
 //	teacher [--db path] [--new n] review                 open the app on Review
 //	teacher [--db path] import <vocabulary-bank.md>      import the vocabulary bank
+//	teacher [--db path] import <progress-folder>         import bank, level and history
+//	teacher [--db path] set name <name>                  set the learner's name
+//	teacher [--db path] set goal <minutes>               set the daily goal
 package main
 
 import (
@@ -15,6 +18,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -29,6 +34,9 @@ const usage = `usage:
   teacher [--db path] [--new n]                    open the app on Home
   teacher [--db path] [--new n] review             open the app on Review
   teacher [--db path] import <vocabulary-bank.md>  import the vocabulary bank
+  teacher [--db path] import <progress-folder>     import the bank, level.md and history
+  teacher [--db path] set name <name>              set your name
+  teacher [--db path] set goal <minutes>           set the daily goal (default 20)
 
   --new n  most never-reviewed cards per session (default 20)`
 
@@ -66,6 +74,8 @@ func run(args []string, stdout io.Writer) error {
 			return errors.New(usage)
 		}
 		return runImport(*dbPath, rest[0], stdout)
+	case "set":
+		return runSet(*dbPath, rest, stdout)
 	case "review":
 		if len(rest) != 0 {
 			return errors.New(usage)
@@ -93,7 +103,42 @@ func openStore(path string) (*store.Store, error) {
 	return store.Open(path)
 }
 
-func runImport(dbPath, bankPath string, stdout io.Writer) error {
+// runImport imports a vocabulary bank file, or a whole english-master
+// progress folder: its vocabulary-bank.md (required) plus level.md,
+// streak.md and daily-log.md when they exist. Importing again is safe.
+func runImport(dbPath, path string, stdout io.Writer) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	bankPath, folder := path, ""
+	if info.IsDir() {
+		folder, bankPath = path, filepath.Join(path, "vocabulary-bank.md")
+		if _, err := os.Stat(bankPath); err != nil {
+			return fmt.Errorf("%s has no vocabulary-bank.md", path)
+		}
+	}
+
+	st, err := openStore(dbPath)
+	if err != nil {
+		return err
+	}
+	defer st.Close()
+
+	ctx := context.Background()
+	if err := importBank(ctx, st, bankPath, stdout); err != nil {
+		return err
+	}
+	if folder == "" {
+		return nil
+	}
+	if err := importLevel(ctx, st, filepath.Join(folder, "level.md"), stdout); err != nil {
+		return err
+	}
+	return importHistory(ctx, st, folder, stdout)
+}
+
+func importBank(ctx context.Context, st *store.Store, bankPath string, stdout io.Writer) error {
 	f, err := os.Open(bankPath)
 	if err != nil {
 		return err
@@ -104,14 +149,6 @@ func runImport(dbPath, bankPath string, stdout io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", bankPath, err)
 	}
-
-	st, err := openStore(dbPath)
-	if err != nil {
-		return err
-	}
-	defer st.Close()
-
-	ctx := context.Background()
 	res, err := st.UpsertCards(ctx, cards)
 	if err != nil {
 		return err
@@ -121,6 +158,142 @@ func runImport(dbPath, bankPath string, stdout io.Writer) error {
 		return err
 	}
 	fmt.Fprintf(stdout, "Imported %s: %d new, %d updated, %d total\n", bankPath, res.Added, res.Updated, len(all))
+	return nil
+}
+
+// importLevel copies the level and start date of level.md into the
+// profile, keeping the name and goal the learner set in the app.
+func importLevel(ctx context.Context, st *store.Store, path string, stdout io.Writer) error {
+	f, err := os.Open(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	level, started, err := importer.ParseLevelFile(f)
+	if err != nil {
+		return fmt.Errorf("%s: %w", path, err)
+	}
+	p, err := st.Profile(ctx)
+	if err != nil {
+		return err
+	}
+	p.Level = level
+	if started != (domain.Date{}) {
+		p.Started = started
+	}
+	if err := st.SaveProfile(ctx, p); err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "Level: %s (%s)", level, level.Name())
+	if p.Started != (domain.Date{}) {
+		fmt.Fprintf(stdout, ", started %s", p.Started)
+	}
+	fmt.Fprintln(stdout)
+	return nil
+}
+
+// importHistory merges the study days of streak.md and daily-log.md.
+func importHistory(ctx context.Context, st *store.Store, folder string, stdout io.Writer) error {
+	parsers := []struct {
+		name  string
+		parse func(io.Reader) ([]domain.Day, error)
+	}{
+		{"streak.md", importer.ParseStreakHistory},
+		{"daily-log.md", importer.ParseDailyLog},
+	}
+	var history []domain.Day
+	found := false
+	for _, p := range parsers {
+		path := filepath.Join(folder, p.name)
+		f, err := os.Open(path)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		days, err := p.parse(f)
+		f.Close()
+		if err != nil {
+			return fmt.Errorf("%s: %w", path, err)
+		}
+		history = append(history, days...)
+		found = true
+	}
+	if !found {
+		return nil
+	}
+	before, err := st.Days(ctx)
+	if err != nil {
+		return err
+	}
+	if _, err := st.MergeDays(ctx, history); err != nil {
+		return err
+	}
+	after, err := st.Days(ctx)
+	if err != nil {
+		return err
+	}
+	n := len(after) - len(before)
+	unit := "days"
+	if n == 1 {
+		unit = "day"
+	}
+	fmt.Fprintf(stdout, "History: %d new study %s\n", n, unit)
+	return nil
+}
+
+// maxGoalMinutes caps the daily goal at four hours.
+const maxGoalMinutes = 240
+
+// runSet changes one profile setting: "name <name...>" or "goal <minutes>".
+// Input is validated before the database is opened, so a bad value
+// changes nothing.
+func runSet(dbPath string, args []string, stdout io.Writer) error {
+	if len(args) < 2 {
+		return errors.New(usage)
+	}
+	key, value := args[0], strings.TrimSpace(strings.Join(args[1:], " "))
+
+	var (
+		apply func(*domain.Profile)
+		done  string
+	)
+	switch key {
+	case "name":
+		apply = func(p *domain.Profile) { p.Name = value }
+		done = fmt.Sprintf("Name set to %q", value)
+	case "goal":
+		n, err := strconv.Atoi(value)
+		if err != nil || n < 1 || n > maxGoalMinutes {
+			return fmt.Errorf("goal must be between 1 and %d minutes, got %q", maxGoalMinutes, value)
+		}
+		apply = func(p *domain.Profile) { p.DailyGoalMinutes = n }
+		done = fmt.Sprintf("Daily goal set to %d min", n)
+	default:
+		return fmt.Errorf("unknown setting %q (want name or goal)\n%s", key, usage)
+	}
+
+	st, err := openStore(dbPath)
+	if err != nil {
+		return err
+	}
+	defer st.Close()
+
+	ctx := context.Background()
+	p, err := st.Profile(ctx)
+	if err != nil {
+		return err
+	}
+	apply(&p)
+	if err := st.SaveProfile(ctx, p); err != nil {
+		return err
+	}
+	fmt.Fprintln(stdout, done)
 	return nil
 }
 

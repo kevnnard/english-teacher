@@ -65,6 +65,24 @@ var migrations = []string{
 	ALTER TABLE cards DROP COLUMN interval_days;
 	ALTER TABLE cards DROP COLUMN repetitions;
 	ALTER TABLE cards DROP COLUMN due;`,
+
+	// 3: study days for the streak and daily log, and the learner profile.
+	// Activities are stored one per line, in the order they were done.
+	`CREATE TABLE days (
+		date        TEXT    PRIMARY KEY,
+		minutes     INTEGER NOT NULL DEFAULT 0,
+		reviews     INTEGER NOT NULL DEFAULT 0,
+		correct     INTEGER NOT NULL DEFAULT 0,
+		failed      INTEGER NOT NULL DEFAULT 0,
+		activities  TEXT    NOT NULL DEFAULT ''
+	);
+	CREATE TABLE profile (
+		id                  INTEGER PRIMARY KEY CHECK (id = 1),
+		name                TEXT    NOT NULL DEFAULT '',
+		level               TEXT    NOT NULL DEFAULT 'A1',
+		started             TEXT    NOT NULL DEFAULT '',
+		daily_goal_minutes  INTEGER NOT NULL DEFAULT 20
+	);`,
 }
 
 // Store is a SQLite-backed card repository.
