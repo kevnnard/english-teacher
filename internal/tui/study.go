@@ -32,16 +32,17 @@ func (a *App) recordGrade(passed bool) {
 	a.addToToday(delta)
 }
 
-// recordUndo takes an undone grade back from today. The time spent stays:
+// recordUndo takes an undone grade back from date, the day it was
+// recorded on, even when midnight has passed since. The time spent stays:
 // it was still study.
-func (a *App) recordUndo(failed bool) {
-	delta := domain.Day{Reviews: -1}
+func (a *App) recordUndo(date domain.Date, failed bool) {
+	delta := domain.Day{Date: date, Reviews: -1}
 	if failed {
 		delta.Failed = -1
 	} else {
 		delta.Correct = -1
 	}
-	a.addToToday(delta)
+	a.addToDay(delta)
 }
 
 // takeStudyMinutes adds the time since the last grade (capped by
@@ -56,10 +57,15 @@ func (a *App) takeStudyMinutes() int {
 	return minutes
 }
 
-// addToToday records delta on today's date, in the store and in memory.
-// A failed record stops the app like a failed save.
+// addToToday records delta on today's date.
 func (a *App) addToToday(delta domain.Day) {
 	delta.Date = a.today()
+	a.addToDay(delta)
+}
+
+// addToDay records delta on its date, in the store and in memory.
+// A failed record stops the app like a failed save.
+func (a *App) addToDay(delta domain.Day) {
 	if a.record != nil {
 		if err := a.record(delta); err != nil {
 			a.err = err

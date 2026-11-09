@@ -51,6 +51,7 @@ type session struct {
 
 // undoStep remembers enough to take a grade back.
 type undoStep struct {
+	date        domain.Date // the study day the grade was recorded on
 	pos         int         // queue position of the graded card
 	before      domain.Card // the card as it was before the grade
 	failed      bool
@@ -200,7 +201,7 @@ func (a *App) grade(ans domain.Answer, next bool) tea.Cmd {
 		}
 	}
 
-	step := &undoStep{pos: s.pos, before: before, failed: failed}
+	step := &undoStep{pos: s.pos, before: before, failed: failed, date: a.today()}
 	if failed {
 		s.failed++
 		if !s.practice && !slices.Contains(s.tricky, idx) {
@@ -259,7 +260,7 @@ func (a *App) undo() tea.Cmd {
 		return nil
 	}
 	a.cards[idx] = u.before
-	a.recordUndo(u.failed)
+	a.recordUndo(u.date, u.failed)
 	if a.err != nil {
 		return nil
 	}

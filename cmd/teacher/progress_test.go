@@ -208,3 +208,23 @@ func TestAppConfigLoadsProfileDaysAndRecords(t *testing.T) {
 		t.Errorf("Record did not reach the store: %+v", days)
 	}
 }
+
+func TestReimportLevelWithoutStartClearsTheStart(t *testing.T) {
+	db := filepath.Join(t.TempDir(), "teacher.db")
+	dir := progressDir(t, true)
+	run([]string{"--db", db, "import", dir}, &bytes.Buffer{})
+	os.WriteFile(filepath.Join(dir, "level.md"), []byte("**Current Level:** A2 (Elementary)\n"), 0o644)
+	var out bytes.Buffer
+
+	if err := run([]string{"--db", db, "import", dir}, &out); err != nil {
+		t.Fatal(err)
+	}
+
+	p, _ := openDB(t, db).Profile(context.Background())
+	if p.Level != domain.A2 || p.Started != (domain.Date{}) {
+		t.Errorf("profile = %+v, want A2 with no start date", p)
+	}
+	if !strings.Contains(out.String(), "Level: A2 (Elementary)\n") {
+		t.Errorf("output = %q", out.String())
+	}
+}

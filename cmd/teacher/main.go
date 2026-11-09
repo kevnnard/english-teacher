@@ -162,7 +162,8 @@ func importBank(ctx context.Context, st *store.Store, bankPath string, stdout io
 }
 
 // importLevel copies the level and start date of level.md into the
-// profile, keeping the name and goal the learner set in the app.
+// profile, keeping the name and goal the learner set in the app. A file
+// without a start date clears it: the file is the source of truth.
 func importLevel(ctx context.Context, st *store.Store, path string, stdout io.Writer) error {
 	f, err := os.Open(path)
 	if errors.Is(err, os.ErrNotExist) {
@@ -181,10 +182,7 @@ func importLevel(ctx context.Context, st *store.Store, path string, stdout io.Wr
 	if err != nil {
 		return err
 	}
-	p.Level = level
-	if started != (domain.Date{}) {
-		p.Started = started
-	}
+	p.Level, p.Started = level, started // level.md is the source of both
 	if err := st.SaveProfile(ctx, p); err != nil {
 		return err
 	}

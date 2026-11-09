@@ -178,3 +178,17 @@ func TestStatsShowsStreakAndTheLastSevenDays(t *testing.T) {
 		t.Errorf("want one row per day of the week:\n%s", page)
 	}
 }
+
+func TestUndoAfterMidnightTakesBackTheDayOfTheGrade(t *testing.T) {
+	log := &studyLog{}
+	a, clock := newProgressApp(t, domain.NewProfile(), nil, log, Review)
+	a, _ = press(t, a, "space", "3")
+
+	clock.t = clock.t.Add(3 * time.Hour) // 00:30 the next day
+	a, _ = press(t, a, "u")
+
+	if last := log.deltas[len(log.deltas)-1]; last.Date != today || last.Reviews != -1 {
+		t.Errorf("undo delta = %+v, want reviews -1 on %v", last, today)
+	}
+	mustNotContain(t, statusBar(a), "streak")
+}
