@@ -8,27 +8,19 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// layout is how the screen is split, chosen from the terminal width
-// (design/DESIGN.md §4).
-type layout int
-
+// Every screen is a notebook page (design/DESIGN.md §4): a top bar with the
+// date, the page context and the tabs; a margin line down the left; the
+// status bar at the bottom.
 const (
-	focusLayout layout = iota // one pane, progress line on top
-	railLayout                // rail + content
-	wideLayout                // rail + content + coach
-)
-
-const (
-	railWidth     = 26  // including its rule
-	coachWidth    = 44  // including its rule
-	railMinWidth  = 100 // narrower terminals get the focus layout
-	coachMinWidth = 140 // wider terminals get room for the coach
+	wideMarginMin = 100 // terminals this wide get the wide margin
+	wideMargin    = 6   // columns left of the margin line on wide terminals
+	narrowMargin  = 2   // columns left of the margin line otherwise
+	gutter        = 3   // columns between the margin line and the text
+	pageWidth     = 76  // the widest the text of a page gets
 
 	// Used until the terminal reports its size.
 	defaultWidth  = 80
 	defaultHeight = 24
-
-	inset = 2 // columns between a region's edge and its text
 )
 
 func (a App) size() (w, h int) {
@@ -38,16 +30,12 @@ func (a App) size() (w, h int) {
 	return a.width, a.height
 }
 
-func (a App) layout() layout {
-	w, _ := a.size()
-	switch {
-	case w < railMinWidth:
-		return focusLayout
-	case w >= coachMinWidth && a.coach:
-		return wideLayout
-	default:
-		return railLayout
+// margin is how many columns sit left of the margin line.
+func (a App) margin() int {
+	if w, _ := a.size(); w >= wideMarginMin {
+		return wideMargin
 	}
+	return narrowMargin
 }
 
 // block turns s into exactly h lines of exactly w columns: longer lines are
@@ -69,19 +57,6 @@ func block(s string, w, h int, pad lipgloss.Style) []string {
 	return out
 }
 
-// joinColumns glues equally tall blocks side by side.
-func joinColumns(cols ...[]string) []string {
-	out := make([]string, len(cols[0]))
-	for i := range out {
-		var b strings.Builder
-		for _, c := range cols {
-			b.WriteString(c[i])
-		}
-		out[i] = b.String()
-	}
-	return out
-}
-
 // indent prefixes every line of s with n spaces.
 func indent(s string, n int) string {
 	pad := strings.Repeat(" ", n)
@@ -91,21 +66,15 @@ func indent(s string, n int) string {
 // paneSize is the room the active screen has for its own text.
 func (a App) paneSize() (w, h int) {
 	tw, th := a.size()
-	body := max(th-1, 0)
-	switch a.layout() {
-	case focusLayout:
-		w, h = tw, body-1
-	case railLayout:
-		w, h = tw-railWidth, body
-	case wideLayout:
-		w, h = tw-railWidth-coachWidth, body
-	}
-	// One blank row on top and an inset on both sides.
-	return max(w-2*inset, 1), max(h-1, 0)
+	w = min(tw-a.margin()-1-2*gutter, pageWidth)
+	// The top bar, the status bar and one blank row on top of the page.
+	return max(w, 1), max(th-3, 0)
 }
 
-// pane renders the content region: an overlay or the active screen.
-func (a App) pane(w, h int) []string {
+// page renders the body between the two bars: the margin line and, right
+// of it, an overlay or the active screen.
+func (a App) page(w, h int) []string {
+	r := a.st.main
 	iw, ih := a.paneSize()
 	var s string
 	switch {
@@ -118,7 +87,12 @@ func (a App) pane(w, h int) []string {
 	default:
 		s = a.screenView(iw, ih)
 	}
-	return block("\n"+indent(s, inset), w, h, a.st.main.base)
+	left := r.base.Render(strings.Repeat(" ", a.margin())) + r.margin.Render("│")
+	text := block("\n"+indent(s, gutter), max(w-a.margin()-1, 0), h, r.base)
+	for i := range text {
+		text[i] = left + text[i]
+	}
+	return text
 }
 
 func (a App) screenView(w, h int) string {
@@ -142,63 +116,52 @@ func (a App) errorView() string {
 		r.label.Render("Your earlier answers are saved. Press any key to quit.")
 }
 
-// rail is the left navigation column with its rule.
-func (a App) rail(h int) []string {
+// header is the top bar: the date and what this page is on the left, the
+// tabs on the right. When the tabs do not fit, only the active one stays.
+func (a App) header(w int) string {
 	r := a.st.chrome
-	counts := map[Screen]string{Words: fmt.Sprint(len(a.wordCards()))}
-	if n := a.review.remaining(); n > 0 {
-		counts[Review] = "● " + fmt.Sprint(n)
-	}
+	left := r.base.Render(" ") + r.title.Render(a.now().Format("Monday 2 Jan")) +
+		r.label.Render("  ·  ") + r.secondary.Render(a.pageContext())
 
-	lines := []string{""}
-	for _, s := range screens {
-		name, count := "   "+s.String(), counts[s]
-		style := r.value
+	tab := func(s Screen) string {
 		if s == a.screen {
-			name, style = " ▸ "+s.String(), r.title
+			return r.title.Render(s.String())
 		}
-		gap := max(railWidth-1-inset-ansi.StringWidth(name)-ansi.StringWidth(count), 1)
-		countStyle := r.label
-		if s == Review {
-			countStyle = r.accent
-		}
-		lines = append(lines, style.Render(name)+r.base.Render(strings.Repeat(" ", gap))+countStyle.Render(count))
+		return r.label.Render(s.String())
+	}
+	tabs := make([]string, len(screens))
+	for i, s := range screens {
+		tabs[i] = tab(s)
+	}
+	right := strings.Join(tabs, r.base.Render("  ")) + r.base.Render(" ")
+	if ansi.StringWidth(left)+ansi.StringWidth(right)+2 > w {
+		right = tab(a.screen) + r.base.Render(" ")
 	}
 
-	text := block(strings.Join(lines, "\n"), railWidth-1, h, r.base)
-	for i := range text {
-		text[i] += r.rule.Render("│")
-	}
-	return text
+	gap := max(w-ansi.StringWidth(left)-ansi.StringWidth(right), 1)
+	return block(left+r.base.Render(strings.Repeat(" ", gap))+right, w, 1, r.base)[0]
 }
 
-// coachPanel is the right column with its rule.
-func (a App) coachPanel(h int) []string {
-	r := a.st.chrome
-	s := "\n" + indent(a.coachView(coachWidth-1-2*inset), inset)
-	text := block(s, coachWidth-1, h, r.base)
-	for i := range text {
-		text[i] = r.rule.Render("│") + text[i]
+// pageContext names the page: its number during a review, else the screen.
+func (a App) pageContext() string {
+	if a.screen != Review || a.err != nil || a.help || a.palette.open {
+		return a.screen.String()
 	}
-	return text
-}
-
-// progressLine shows how much of today's session is done, for the focus layout.
-func (a App) progressLine(w int) string {
-	done, total := a.review.pos, len(a.review.queue)
-	filled := 0
-	if total > 0 {
-		filled = w * done / total
+	s := a.current()
+	switch {
+	case len(s.queue) == 0:
+		return "Review"
+	case s.done():
+		return "Summary"
 	}
-	r := a.st.main
-	return r.accent.Render(strings.Repeat("━", filled)) + r.rule.Render(strings.Repeat("─", w-filled))
+	return fmt.Sprintf("Page %d of %d", s.pos+1, len(s.queue))
 }
 
 // statusBar is the bottom row: facts on the left, key hints on the right.
 // Hints are dropped from the end when the terminal is too narrow.
 func (a App) statusBar(w int) string {
 	r := a.st.chrome
-	sep := r.label.Render(" │ ")
+	sep := r.label.Render("  ·  ")
 	facts := []string{r.accent.Render("A1"), r.value.Render(fmt.Sprintf("%d due", a.review.remaining()))}
 	if s := a.review; s.correct+s.failed > 0 {
 		facts = append(facts, r.success.Render(fmt.Sprintf("✓ %d", s.correct))+r.base.Render(" ")+
@@ -207,9 +170,6 @@ func (a App) statusBar(w int) string {
 	left := r.base.Render(" ") + strings.Join(facts, sep)
 
 	hints := a.hints()
-	if w >= coachMinWidth {
-		hints = append(hints, "c coach")
-	}
 	right := ""
 	for n := len(hints); n > 0; n-- {
 		right = r.label.Render(strings.Join(hints[:n], " · ") + " ")

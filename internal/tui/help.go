@@ -5,6 +5,9 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/kevnnard/english-teacher/internal/domain"
+	"github.com/kevnnard/english-teacher/internal/srs"
 )
 
 // helpSections is the text of the `?` overlay. The README keys table mirrors
@@ -17,7 +20,7 @@ var helpSections = []struct {
 		{"tab / shift+tab", "next / previous screen"},
 		{":", "command palette: type a screen name, enter to go"},
 		{"?", "show / hide this help"},
-		{"c", "show / hide the coach (140+ columns)"},
+		{"c", "show / hide the margin notes during review"},
 		{"esc", "back to Home"},
 		{"q", "quit on Home, back to Home elsewhere"},
 		{"ctrl+c", "quit"},
@@ -51,17 +54,12 @@ func (a App) helpView() string {
 	return strings.TrimSuffix(b.String(), "\n")
 }
 
-// coachView is the coach panel's text. In M1 it only reflects the learner's
-// own history with the card on screen; tips and "use it today" need the LLM
-// and arrive in M3.
-func (a App) coachView(w int) string {
-	r := a.st.chrome
-	title := r.title.Render("Coach") + "\n\n"
+// marginNotes is the learner's own history with the card on screen, written
+// at the foot of the page. Tips and "use it today" need the LLM and arrive
+// in M3, so they are not here.
+func (a App) marginNotes(w int) string {
+	r := a.st.main
 	s := a.current()
-	if a.screen != Review || s.done() {
-		return title + r.label.Render("Your history shows here during review.")
-	}
-
 	c := a.cards[s.queue[s.pos]]
 	if s.phase == revealed || s.phase == checked {
 		// Show the history the card had when it came up, not after this grade.
@@ -69,13 +67,23 @@ func (a App) coachView(w int) string {
 			c = s.undo.before
 		}
 	}
-	seen := c.TimesCorrect + c.TimesFailed
+
+	history := "new word"
+	if seen := c.TimesCorrect + c.TimesFailed; seen > 0 {
+		history = fmt.Sprintf("seen %d · ✓ %d · ✗ %d", seen, c.TimesCorrect, c.TimesFailed)
+	}
+	next := srs.Review(c, domain.Good.Grade(), a.now()).IntervalDays
+	when := "tomorrow"
+	if next > 1 {
+		when = fmt.Sprintf("in %d days", next)
+	}
+
 	lines := []string{
-		r.label.Render(c.Direction.String()),
-		r.value.Render(fmt.Sprintf("seen %d · ✓ %d · ✗ %d", seen, c.TimesCorrect, c.TimesFailed)),
+		r.meta.Render("Margin notes"),
+		"  " + r.label.Render(ansi.Truncate(history+" · next if good: "+when, max(w-2, 1), "…")),
 	}
 	if c.LastWrong != "" {
-		lines = append(lines, r.value.Render(ansi.Truncate(fmt.Sprintf("last: wrote %q", c.LastWrong), w, "…")))
+		lines = append(lines, "  "+r.label.Render(ansi.Truncate(fmt.Sprintf("last: wrote %q", c.LastWrong), max(w-2, 1), "…")))
 	}
-	return title + strings.Join(lines, "\n")
+	return strings.Join(lines, "\n")
 }

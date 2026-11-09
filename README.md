@@ -27,13 +27,10 @@ the command to pick another file, e.g. `./teacher --db /tmp/test.db review`.
 
 Screens: **Home** (one preselected next action), **Review** (cards due today),
 **Words** (every word with its status), **Stats**, and **Learn** / **Write**
-(coming in M3). The layout follows the terminal width:
-
-| Width | Layout |
-|---|---|
-| < 100 columns | one pane, progress line on top |
-| 100–139 columns | navigation rail + content |
-| ≥ 140 columns | rail + content + coach panel |
+(coming in M3). Every screen is a notebook page: the top bar shows the date,
+the page ("Page 3 of 26" during a review) and the screen tabs; a margin line
+runs down the left (6 columns in from the edge on terminals 100+ columns
+wide, 2 on narrower ones) and the text never gets wider than 76 columns.
 
 The bottom row is the status bar: your level, cards still due and this
 session's ✓/✗ on the left, the keys for the current screen on the right.
@@ -48,7 +45,7 @@ The `?` overlay shows the same list.
 | everywhere | `tab` / `shift+tab` | next / previous screen |
 | | `:` | command palette: type a screen name, `enter` to go |
 | | `?` | show / hide help |
-| | `c` | show / hide the coach (140+ columns) |
+| | `c` | show / hide the margin notes during review |
 | | `esc` | back to Home |
 | | `q` | quit on Home, back to Home elsewhere |
 | | `ctrl+c` | quit |
@@ -88,11 +85,11 @@ until you grade the next card. In a typing prompt every key is a letter, so
 `u` there types a "u".
 
 A session is every card due today plus at most 20 new words (`--new`). It
-ends with a summary: how many you reviewed and how long it took, up to three
-tricky words, and when the next review is. `r` replays the session's mistakes
-for practice without moving any review date. On wide terminals the coach
-panel shows your history with the card on screen: times seen, ✓/✗ and the
-last wrong answer you typed.
+ends with a summary page: how many you reviewed and how long it took, up to
+three words to watch, and when the next review is. `r` replays the session's
+mistakes for practice without moving any review date. The margin notes at the
+foot of each card show your history with it: times seen, ✓/✗, when it comes
+back if you grade it good, and the last wrong answer you typed.
 
 ## Roadmap
 

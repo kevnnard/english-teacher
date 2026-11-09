@@ -13,112 +13,61 @@ import (
 	"github.com/kevnnard/english-teacher/internal/domain"
 )
 
-// hasRail reports whether the navigation rail is on screen: its items
-// sit in the first 26 columns.
-func hasRail(a App) bool {
-	for _, l := range screenLines(a) {
-		if strings.HasPrefix(strings.TrimSpace(l), "Learn") || strings.HasPrefix(strings.TrimSpace(l), "Stats") {
-			return true
-		}
+// marginColumn is where the notebook margin line sits for a terminal width.
+func marginColumn(width int) int {
+	if width >= 100 {
+		return 6
 	}
-	return false
+	return 2
 }
 
-func hasCoach(a App) bool { return strings.Contains(screen(a), "Coach") }
+func TestHeaderShowsDateContextAndTabs(t *testing.T) {
+	for _, width := range []int{80, 120, 160} {
+		a := newApp(t, deck(), &recorder{}, Home, width, 24)
 
-func TestLayoutFollowsWidth(t *testing.T) {
-	tests := []struct {
-		width     int
-		wantRail  bool
-		wantCoach bool
-	}{
-		{width: 60},
-		{width: 80},
-		{width: 99},
-		{width: 100, wantRail: true},
-		{width: 120, wantRail: true},
-		{width: 139, wantRail: true},
-		{width: 140, wantRail: true, wantCoach: true},
-		{width: 160, wantRail: true, wantCoach: true},
+		top := screenLines(a)[0]
+
+		mustContain(t, top, "Monday 9 Nov", "Home", "Review", "Words", "Stats")
 	}
-	for _, tt := range tests {
-		t.Run(fmt.Sprint(tt.width), func(t *testing.T) {
-			a := newApp(t, deck(), &recorder{}, Home, tt.width, 24)
+}
 
-			if got := hasRail(a); got != tt.wantRail {
-				t.Errorf("rail = %v, want %v:\n%s", got, tt.wantRail, screen(a))
-			}
-			if got := hasCoach(a); got != tt.wantCoach {
-				t.Errorf("coach = %v, want %v:\n%s", got, tt.wantCoach, screen(a))
+func TestHeaderKeepsTheActiveTabWhenNarrow(t *testing.T) {
+	a := newApp(t, deck(), &recorder{}, Review, 50, 24)
+
+	top := screenLines(a)[0]
+
+	mustContain(t, top, "Page 1 of 5", "Review")
+	mustNotContain(t, top, "Stats")
+}
+
+func TestMarginLineRunsDownThePage(t *testing.T) {
+	for _, width := range []int{60, 80, 99, 100, 120, 160} {
+		t.Run(fmt.Sprint(width), func(t *testing.T) {
+			a := newApp(t, deck(), &recorder{}, Review, width, 24)
+			lines := screenLines(a)
+			col := marginColumn(width)
+
+			for i, l := range lines[1 : len(lines)-1] {
+				r := []rune(l)
+				if len(r) <= col || r[col] != '│' {
+					t.Fatalf("line %d: want the margin line in column %d:\n%q", i+1, col, l)
+				}
 			}
 		})
 	}
 }
 
-func TestRailIs26ColumnsWide(t *testing.T) {
-	a := newApp(t, deck(), &recorder{}, Home, 120, 24)
-
-	for i, l := range screenLines(a)[:23] {
-		r := []rune(l)
-		if len(r) < 26 || r[25] != '│' {
-			t.Fatalf("line %d: want the rail rule in column 26:\n%q", i, l)
-		}
-	}
-}
-
-func TestCoachIs44ColumnsWide(t *testing.T) {
-	a := newApp(t, deck(), &recorder{}, Home, 160, 24)
-
-	for i, l := range screenLines(a)[:23] {
-		r := []rune(l)
-		if len(r) != 160 || r[160-44] != '│' {
-			t.Fatalf("line %d: want the coach rule 44 columns from the right edge:\n%q", i, l)
-		}
-	}
-}
-
-func TestFocusLayoutShowsProgressLineOnTop(t *testing.T) {
-	a := newApp(t, deck(), &recorder{}, Review, 80, 24)
-
-	top := screenLines(a)[0]
-	if !strings.Contains(top, "━") && !strings.Contains(top, "─") {
-		t.Errorf("first line should be the progress line, got %q", top)
-	}
-	if hasRail(a) {
-		t.Error("focus layout should have no rail")
-	}
-}
-
 func TestLayoutIsRecomputedOnResize(t *testing.T) {
 	a := newApp(t, deck(), &recorder{}, Home, 160, 24)
-	if !hasCoach(a) {
-		t.Fatal("want coach at 160")
-	}
 
-	a = send(t, a, tea.WindowSizeMsg{Width: 80, Height: 24})
-	if hasRail(a) || hasCoach(a) {
-		t.Errorf("after shrinking to 80 want focus layout:\n%s", screen(a))
-	}
+	a = send(t, a, tea.WindowSizeMsg{Width: 80, Height: 30})
 
-	a = send(t, a, tea.WindowSizeMsg{Width: 120, Height: 30})
-	if !hasRail(a) || hasCoach(a) {
-		t.Errorf("after growing to 120 want rail only:\n%s", screen(a))
-	}
-	if n := len(screenLines(a)); n != 30 {
+	lines := screenLines(a)
+	if n := len(lines); n != 30 {
 		t.Errorf("view has %d lines, want the new height 30", n)
 	}
-}
-
-func TestCoachToggle(t *testing.T) {
-	a := newApp(t, deck(), &recorder{}, Home, 160, 24)
-
-	a, _ = press(t, a, "c")
-	if hasCoach(a) {
-		t.Errorf("c should hide the coach:\n%s", screen(a))
-	}
-	a, _ = press(t, a, "c")
-	if !hasCoach(a) {
-		t.Errorf("c again should show the coach:\n%s", screen(a))
+	if r := []rune(lines[1]); r[marginColumn(80)] != '│' {
+		t.Errorf("after shrinking to 80 the margin should move to column 2: %q", lines[1])
 	}
 }
 
@@ -289,7 +238,7 @@ func TestPaletteFiltersAndJumps(t *testing.T) {
 	mustContain(t, screen(a), "Review", "Words", "Stats")
 
 	a = typeText(t, a, "wo")
-	v := screen(a)
+	v := pageText(a) // the header always lists every tab
 	mustContain(t, v, "▸ Words")
 	mustNotContain(t, v, "Stats")
 
@@ -366,12 +315,17 @@ func TestColorsFollowTheTerminalBackground(t *testing.T) {
 	}
 }
 
-func TestEnglishTargetIsBold(t *testing.T) {
+func TestEnglishTargetIsBoldAndHighlighted(t *testing.T) {
 	a := newApp(t, deck(), &recorder{}, Review, 80, 24)
 
-	bold := lipgloss.NewStyle().Bold(true).Render("hello")
-
-	if !strings.Contains(a.View().Content, bold) {
-		t.Errorf("the English word should be rendered bold:\n%q", a.View().Content)
+	word := a.st.main.word
+	if !word.GetBold() {
+		t.Error("the highlighted English word should be bold")
+	}
+	if _, none := word.GetBackground().(lipgloss.NoColor); none {
+		t.Error("the English word should sit on a highlight background")
+	}
+	if !strings.Contains(a.View().Content, word.Render(" hello ")) {
+		t.Errorf("the English word should be rendered highlighted:\n%q", a.View().Content)
 	}
 }

@@ -17,8 +17,7 @@ import (
 )
 
 const (
-	cardWidth = 52 // the widest the review card gets, borders included
-	maxTricky = 3  // words listed under "Tricky today"
+	maxTricky = 3 // words listed under "Watch these"
 )
 
 // phase is where the learner is with the card on screen.
@@ -308,11 +307,10 @@ func (a App) reviewView(w int) string {
 	case len(a.review.queue) == 0:
 		return a.st.main.secondary.Render("No reviews due — come back tomorrow.")
 	case s.done():
-		return a.summaryView()
+		return a.summaryView(w)
 	}
 
 	c := a.cards[s.queue[s.pos]]
-	width := min(cardWidth, w)
 	title := "Recognize · English → Spanish"
 	if c.Direction == domain.Production {
 		title = "Produce · Spanish → English"
@@ -320,83 +318,121 @@ func (a App) reviewView(w int) string {
 	if s.practice {
 		title = "Mistakes round · " + title
 	}
-	header := a.spread(width, a.st.main.label.Render(title), a.st.main.label.Render(fmt.Sprintf("%d / %d", s.pos+1, len(s.queue))))
 
+	sections := []string{a.st.main.label.Render(title)}
 	if c.Direction == domain.Production {
-		return header + "\n\n" + a.productionView(c, width)
+		sections = append(sections, a.productionView(c, w)...)
+	} else {
+		sections = append(sections, a.recognitionView(c, w)...)
 	}
-	return header + "\n\n" + a.recognitionView(c, width)
+	if a.notes {
+		sections = append(sections, a.marginNotes(w))
+	}
+	return a.joinSections(w, sections)
 }
 
-// spread puts left and right at the two ends of a line of width w.
-func (a App) spread(w int, left, right string) string {
-	gap := max(w-ansi.StringWidth(left)-ansi.StringWidth(right), 2)
-	return left + strings.Repeat(" ", gap) + right
+// joinSections stacks the parts of a page with a ruled line between them,
+// like the lines of a notebook. The first part is the page title.
+func (a App) joinSections(w int, sections []string) string {
+	rule := "\n" + a.st.main.rule.Render(strings.Repeat("─", w)) + "\n"
+	return sections[0] + "\n\n" + strings.Join(sections[1:], rule)
 }
 
-func (a App) recognitionView(c domain.Card, width int) string {
+// headword is the word on its highlight marker, with the pronunciation after
+// it when there is room.
+func (a App) headword(text string, style lipgloss.Style, extra string, w int) string {
+	text = ansi.Truncate(text, max(w-2, 1), "…")
+	line := style.Render(" " + text + " ")
+	if extra != "" && ansi.StringWidth(line)+3+ansi.StringWidth(extra) <= w {
+		line += "   " + a.st.main.meta.Render(extra)
+	}
+	return line
+}
+
+// labeled is a section: a small label and its text indented under it.
+// The text wraps to the page; style paints each wrapped line.
+func (a App) labeled(label, text string, w int, style func(...string) string) string {
+	lines := strings.Split(ansi.Wordwrap(text, max(w-2, 1), ""), "\n")
+	for i, l := range lines {
+		lines[i] = "  " + style(l)
+	}
+	return a.st.main.secondary.Render(label) + "\n" + strings.Join(lines, "\n")
+}
+
+func (a App) recognitionView(c domain.Card, w int) []string {
 	r := a.st.main
-	var back []cardLine
-	hint := r.label.Render("space reveal")
-	if a.current().phase == revealed {
-		back = []cardLine{{c.Meaning, r.value}, {`"` + c.Example + `"`, r.secondary.Italic(true)}}
-		hint = a.gradeRow(domain.Again, domain.Hard, domain.Good, domain.Easy)
+	head := a.headword(c.Word, r.word, c.Pronunciation, w)
+	if a.current().phase != revealed {
+		return []string{head, r.secondary.Render("What does it mean? Say it in your head.") + "\n\n" +
+			"  " + r.accent.Render("space") + r.label.Render(" show the answer")}
 	}
-	return a.cardBox(width, []cardLine{{c.Word, r.target}, {c.Pronunciation, r.meta}}, back) + "\n  " + hint
+	return []string{
+		head,
+		a.labeled("In context", `"`+c.Example+`"`, w, func(l ...string) string { return a.markWord(strings.Join(l, ""), c.Word) }),
+		a.labeled("Meaning", c.Meaning, w, r.value.Render),
+		r.secondary.Render("How well did you remember it?") + "\n\n  " +
+			a.gradeRow(domain.Again, domain.Hard, domain.Good, domain.Easy),
+	}
+}
+
+// markWord underlines the first appearance of word in line, ignoring case,
+// so the learner sees the word inside a real sentence.
+func (a App) markWord(line, word string) string {
+	r := a.st.main
+	i := strings.Index(strings.ToLower(line), strings.ToLower(word))
+	if word == "" || i < 0 {
+		return r.value.Render(line)
+	}
+	j := i + len(word)
+	return r.value.Render(line[:i]) + r.accent.Underline(true).Render(line[i:j]) + r.value.Render(line[j:])
 }
 
 // gradeRow is "1 again   2 hard   3 good   4 easy" for the given answers.
 func (a App) gradeRow(answers ...domain.Answer) string {
 	r := a.st.main
 	styles := map[domain.Answer]lipgloss.Style{
-		domain.Again: r.danger, domain.Hard: r.warning, domain.Good: r.accent, domain.Easy: r.success,
+		domain.Again: r.danger, domain.Hard: r.warning, domain.Good: r.info, domain.Easy: r.success,
 	}
 	parts := make([]string, len(answers))
 	for i, ans := range answers {
-		parts[i] = styles[ans].Render(fmt.Sprint(int(ans))) + " " + ans.String()
+		parts[i] = styles[ans].Bold(true).Render(fmt.Sprint(int(ans))) + " " + ans.String()
 	}
-	return strings.Join(parts, "   ")
+	return strings.Join(parts, "      ")
 }
 
-func (a App) productionView(c domain.Card, width int) string {
+func (a App) productionView(c domain.Card, w int) []string {
 	r := a.st.main
 	s := a.current()
-	center := func(text string, style lipgloss.Style) string {
-		text = ansi.Truncate(text, width, "…")
-		return strings.Repeat(" ", max((width-ansi.StringWidth(text))/2, 0)) + style.Render(text)
-	}
 
 	// Spanish is never bold: bold is reserved for the English being learned.
-	lines := []string{"", center(c.Meaning, r.value)}
+	sections := []string{a.headword(c.Meaning, r.prompt, "", w)}
 	if gapped, ok := check.Gap(c.Example, c.Word); ok {
-		lines = append(lines, center(`"`+gapped+`"`, r.secondary.Italic(true)))
+		sections = append(sections, a.labeled("In context", `"`+gapped+`"`, w, r.value.Render))
 	}
-	lines = append(lines, "")
 
-	input := r.accent.Render("› ") + s.input
+	answer := r.secondary.Render("Your answer") + "\n  " + r.accent.Render("› ") + s.input
 	if s.phase == typing {
-		input += r.accent.Render("▏")
+		answer += r.accent.Render("▏")
 	}
-	lines = append(lines, input, "")
+	if s.phase != checked {
+		return append(sections, answer)
+	}
 
-	if s.phase == checked {
-		switch s.result.Kind {
-		case check.Exact:
-			lines = append(lines,
-				"  "+r.success.Render("✓ correct")+r.label.Render(" · graded good"),
-				"", "  "+r.accent.Render("enter")+" next   "+r.success.Render("4")+" easy")
-		case check.Almost:
-			n := s.result.Distance
-			lines = append(lines,
-				"  "+a.diffView(s.result.Diff)+"   "+r.warning.Render(fmt.Sprintf("✗ almost · %d %s", n, plural(n, "letter", "letters"))),
-				"", "  "+a.gradeRow(domain.Again, domain.Hard))
-		default:
-			lines = append(lines,
-				"  "+r.danger.Render("✗ not quite")+r.label.Render(" · the answer is ")+r.target.Render(c.Word),
-				"", "  "+a.gradeRow(domain.Again))
-		}
+	question := r.secondary.Render("How well did you remember it?") + "\n\n  "
+	switch s.result.Kind {
+	case check.Exact:
+		answer += "\n  " + r.success.Render("✓ correct") + r.label.Render(" · graded good")
+		return append(sections, answer,
+			"  "+r.accent.Render("enter")+" next      "+r.success.Bold(true).Render("4")+" easy")
+	case check.Almost:
+		n := s.result.Distance
+		answer += "\n  " + a.diffView(s.result.Diff) + "   " +
+			r.warning.Render(fmt.Sprintf("✗ almost · %d %s", n, plural(n, "letter", "letters")))
+		return append(sections, answer, question+a.gradeRow(domain.Again, domain.Hard))
+	default:
+		answer += "\n  " + r.danger.Render("✗ not quite") + r.label.Render(" · the answer is ") + r.target.Render(c.Word)
+		return append(sections, answer, question+a.gradeRow(domain.Again))
 	}
-	return strings.Join(lines, "\n")
 }
 
 // diffView colors a letter diff: typed-by-mistake letters struck in red,
@@ -416,37 +452,47 @@ func (a App) diffView(diff []check.Op) string {
 	return b.String()
 }
 
-// summaryView is the session end: results, tricky words, the next review
-// and one preselected action.
-func (a App) summaryView() string {
+// summaryView is the session end as a page to reread: results, the words to
+// watch, the next review and one preselected action.
+func (a App) summaryView(w int) string {
 	r := a.st.main
 	s := a.review
 	n := len(s.queue)
 	minutes := max(int(math.Ceil(s.elapsed.Minutes())), 1)
 
-	var b strings.Builder
-	b.WriteString(r.target.Render("Done.") + " " + r.secondary.Render(fmt.Sprintf("%d reviewed in %d min.", n, minutes)) +
-		"   " + a.results(s.correct, s.failed) + "\n")
+	top := r.target.Render("Done for today.") + "  " +
+		r.secondary.Render(fmt.Sprintf("%d %s in %d min.", n, plural(n, "word", "words"), minutes)) +
+		"      " + a.results(s.correct, s.failed)
 	if a.round.queue != nil && a.round.done() {
-		b.WriteString(r.label.Render("Mistakes round") + "   " + a.results(a.round.correct, a.round.failed) + "\n")
+		top += "\n" + r.label.Render("Mistakes round") + "   " + a.results(a.round.correct, a.round.failed)
 	}
 
+	sections := []string{top}
 	if len(s.tricky) > 0 {
-		b.WriteString("\n" + r.label.Render("Tricky today") + "\n")
+		lines := []string{r.secondary.Render("Watch these")}
 		for _, idx := range s.tricky[:min(len(s.tricky), maxTricky)] {
-			b.WriteString("  " + r.target.Render(a.cards[idx].Word) + "\n")
+			c := a.cards[idx]
+			line := "  " + a.headword(c.Word, r.word, "", w-2)
+			if c.LastWrong != "" {
+				line += "   " + r.label.Render(fmt.Sprintf("you wrote %q", c.LastWrong))
+			}
+			lines = append(lines, line)
 		}
+		sections = append(sections, strings.Join(lines, "\n"))
 	}
+	sections = append(sections, r.secondary.Render("Next page")+"      "+a.nextReview())
 
-	b.WriteString("\n" + r.label.Render("Next review") + "   " + a.nextReview() + "\n\n")
-
+	home := r.accent.Render("enter") + r.label.Render(" back home")
 	if k := len(s.tricky); k > 0 {
-		b.WriteString(r.accent.Render("▸ r ") + r.target.Render(fmt.Sprintf("review the %d %s again", k, plural(k, "mistake", "mistakes"))) + "\n")
-		b.WriteString("  " + r.label.Render("enter home"))
+		sections = append(sections, "  "+r.accent.Bold(true).Render("r")+" "+
+			r.target.Render(fmt.Sprintf("practice the %d %s again", k, plural(k, "mistake", "mistakes")))+"        "+home)
 	} else {
-		b.WriteString(r.accent.Render("▸ enter ") + r.label.Render("home"))
+		sections = append(sections, "  "+home)
 	}
-	return b.String()
+
+	// The summary has no title of its own: "Done for today." is it.
+	rule := "\n" + r.rule.Render(strings.Repeat("─", w)) + "\n"
+	return strings.Join(sections, rule)
 }
 
 func (a App) results(correct, failed int) string {
@@ -473,43 +519,4 @@ func (a App) nextReview() string {
 		when = day.Format("Mon 2 Jan")
 	}
 	return fmt.Sprintf("%s · %d %s", when, n, plural(n, "card", "cards"))
-}
-
-// cardLine is one line of text on the review card with its style. Text is
-// kept plain until it has been wrapped or cut to fit.
-type cardLine struct {
-	text  string
-	style lipgloss.Style
-}
-
-// cardBox draws the review card: front lines centered on top, back lines
-// below a divider. Long back lines wrap inside the card; the front never
-// wraps, it is cut instead (DESIGN.md §8).
-func (a App) cardBox(width int, front, back []cardLine) string {
-	border := a.st.main.accent
-	inner := width - 2 // inside the borders
-	text := inner - 2*inset
-
-	row := func(left int, l cardLine) string {
-		s := strings.Repeat(" ", left) + l.style.Render(l.text)
-		return border.Render("│") + s + strings.Repeat(" ", max(inner-ansi.StringWidth(s), 0)) + border.Render("│")
-	}
-	rule := func(l, r string) string { return border.Render(l + strings.Repeat("─", inner) + r) }
-
-	lines := []string{rule("╭", "╮"), row(0, cardLine{})}
-	for _, f := range front {
-		f.text = ansi.Truncate(f.text, text, "…")
-		lines = append(lines, row((inner-ansi.StringWidth(f.text))/2, f))
-	}
-	lines = append(lines, row(0, cardLine{}), rule("├", "┤"))
-	if len(back) == 0 {
-		back = []cardLine{{}, {}} // keep the card the same height before the reveal
-	}
-	for _, b := range back {
-		for _, l := range strings.Split(ansi.Wordwrap(b.text, text, ""), "\n") {
-			lines = append(lines, row(inset, cardLine{ansi.Truncate(l, text, "…"), b.style}))
-		}
-	}
-	lines = append(lines, rule("╰", "╯"))
-	return strings.Join(lines, "\n")
 }

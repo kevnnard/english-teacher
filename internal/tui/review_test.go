@@ -19,8 +19,8 @@ func TestReviewFrontShowsWordAndPronunciationOnly(t *testing.T) {
 
 	v := screen(a)
 
-	mustContain(t, v, "Recognize · English → Spanish", "hello", "/həˈloʊ/", "1 / 5")
-	mustNotContain(t, v, "Hola", "Hello, how are you?", "good")
+	mustContain(t, v, "Recognize · English → Spanish", "hello", "/həˈloʊ/", "Page 1 of 5")
+	mustNotContain(t, v, "Hola", "Hello, how are you?", "3 good")
 	mustContain(t, statusBar(a), "space reveal")
 }
 
@@ -42,7 +42,7 @@ func TestReviewGradeBeforeRevealIsIgnored(t *testing.T) {
 	if len(rec.saved) != 0 {
 		t.Errorf("saved %d cards before reveal, want 0", len(rec.saved))
 	}
-	mustContain(t, screen(a), "1 / 5")
+	mustContain(t, screen(a), "Page 1 of 5")
 }
 
 func TestReviewKeys1To4MapToSM2Grades(t *testing.T) {
@@ -58,7 +58,7 @@ func TestReviewKeys1To4MapToSM2Grades(t *testing.T) {
 			if len(rec.saved) != 1 || !reflect.DeepEqual(rec.saved[0], want) {
 				t.Fatalf("saved %+v, want %+v", rec.saved, want)
 			}
-			mustContain(t, screen(a), "hi", "2 / 5")
+			mustContain(t, screen(a), "hi", "Page 2 of 5")
 		})
 	}
 }
@@ -72,7 +72,7 @@ func TestReviewIgnoresOldGradeKeys(t *testing.T) {
 	if len(rec.saved) != 0 {
 		t.Errorf("0 and 5 are not grades any more, saved %d", len(rec.saved))
 	}
-	mustContain(t, screen(a), "1 / 5")
+	mustContain(t, screen(a), "Page 1 of 5")
 }
 
 // --- undo ---
@@ -89,7 +89,7 @@ func TestUndoRestoresTheLastGrade(t *testing.T) {
 		t.Fatalf("undo should save the card as it was before the grade, saved %+v", rec.saved)
 	}
 	v := screen(a)
-	mustContain(t, v, "hello", "1 / 5")
+	mustContain(t, v, "hello", "Page 1 of 5")
 	mustNotContain(t, v, "Hola")
 	mustNotContain(t, statusBar(a), "✗")
 
@@ -114,7 +114,7 @@ func TestUndoOnlyReachesTheLastGrade(t *testing.T) {
 	if rec.saved[2].Word != "hi" {
 		t.Errorf("undo restored %q, want the last graded card hi", rec.saved[2].Word)
 	}
-	mustContain(t, screen(a), "2 / 5")
+	mustContain(t, screen(a), "Page 2 of 5")
 }
 
 func TestUndoBeforeAnyGradeDoesNothing(t *testing.T) {
@@ -126,7 +126,7 @@ func TestUndoBeforeAnyGradeDoesNothing(t *testing.T) {
 	if len(rec.saved) != 0 {
 		t.Errorf("saved %d, want nothing to undo", len(rec.saved))
 	}
-	mustContain(t, screen(a), "1 / 5")
+	mustContain(t, screen(a), "Page 1 of 5")
 }
 
 // --- production (ES → EN, typed) ---
@@ -169,7 +169,7 @@ func TestProductionExactAnswerAutoGradesGood(t *testing.T) {
 	mustContain(t, statusBar(a), "4 easy")
 
 	a, _ = press(t, a, "enter")
-	mustContain(t, screen(a), "Done.")
+	mustContain(t, screen(a), "Done for today.")
 }
 
 func TestProductionExactAnswerUpgradesToEasy(t *testing.T) {
@@ -183,7 +183,7 @@ func TestProductionExactAnswerUpgradesToEasy(t *testing.T) {
 	if len(rec.saved) != 2 || !reflect.DeepEqual(rec.saved[1], want) {
 		t.Fatalf("4 should regrade the original card as easy: %+v", rec.saved)
 	}
-	mustContain(t, screen(a), "Done.")
+	mustContain(t, screen(a), "Done for today.")
 	mustContain(t, statusBar(a), "✓ 1", "✗ 0")
 }
 
@@ -224,7 +224,7 @@ func TestProductionNearMissAllowsOnlyAgainOrHard(t *testing.T) {
 			if len(rec.saved) != 1 || !reflect.DeepEqual(rec.saved[0], want) {
 				t.Fatalf("saved %+v, want %+v", rec.saved, want)
 			}
-			mustContain(t, screen(a), "Done.")
+			mustContain(t, screen(a), "Done for today.")
 		})
 	}
 }
@@ -272,7 +272,7 @@ func TestUndoInProductionReturnsToTyping(t *testing.T) {
 		t.Fatalf("undo should restore the card and its last wrong answer: %+v", rec.saved)
 	}
 	mustContain(t, screen(a), "Mucho gusto", "›")
-	mustNotContain(t, screen(a), "meat", "Done.")
+	mustNotContain(t, screen(a), "meat", "Done for today.")
 }
 
 func TestCtrlZUndoesTheLastGradeWhileTyping(t *testing.T) {
@@ -293,7 +293,7 @@ func TestCtrlZUndoesTheLastGradeWhileTyping(t *testing.T) {
 	if len(rec.saved) != 2 || !reflect.DeepEqual(rec.saved[1], deck()[0]) {
 		t.Fatalf("ctrl+z should restore the previous card, saved %+v", rec.saved)
 	}
-	mustContain(t, screen(a), "hello", "1 / 2")
+	mustContain(t, screen(a), "hello", "Page 1 of 2")
 	mustNotContain(t, screen(a), "Mucho gusto")
 }
 
@@ -301,36 +301,60 @@ func TestReviewMixesBothDirections(t *testing.T) {
 	cards := append(deck(), prodDeck()...)
 	a := newApp(t, cards, &recorder{}, Review, 80, 24)
 
-	mustContain(t, screen(a), "1 / 6")
+	mustContain(t, screen(a), "Page 1 of 6")
 	mustContain(t, statusBar(a), "6 due")
 }
 
-// --- coach ---
+// --- margin notes ---
 
-func TestCoachShowsHistoryOfTheCurrentCard(t *testing.T) {
+func TestMarginNotesShowHistoryOfTheCurrentCard(t *testing.T) {
 	cards := prodDeck()
 	cards[1].TimesCorrect, cards[1].TimesFailed, cards[1].LastWrong = 1, 2, "nice to mit you"
 	last := fixedNow.AddDate(0, 0, -2)
 	cards[1].LastReviewed = &last
 
-	a := newApp(t, cards, &recorder{}, Review, 160, 24)
+	for _, width := range []int{80, 120, 160} {
+		a := newApp(t, cards, &recorder{}, Review, width, 24)
 
-	v := screen(a)
-	mustContain(t, v, "Coach", "production", "seen 3 · ✓ 1 · ✗ 2", `last: wrote "nice to mit you"`)
-	mustNotContain(t, v, "Tip", "Use it today")
+		v := screen(a)
+		mustContain(t, v, "Margin notes", "seen 3 · ✓ 1 · ✗ 2 · next if good: tomorrow", `last: wrote "nice to mit you"`)
+		mustNotContain(t, v, "Tip", "Use it today")
+	}
 }
 
-func TestCoachForANewCard(t *testing.T) {
-	a := newApp(t, prodDeck(), &recorder{}, Review, 160, 24)
+func TestMarginNotesForANewCard(t *testing.T) {
+	a := newApp(t, prodDeck(), &recorder{}, Review, 80, 24)
 
-	mustContain(t, screen(a), "seen 0")
+	mustContain(t, screen(a), "new word · next if good: tomorrow")
 	mustNotContain(t, screen(a), "last: wrote")
 }
 
-func TestCoachOnlyInWideLayout(t *testing.T) {
-	a := newApp(t, prodDeck(), &recorder{}, Review, 120, 24)
+func TestMarginNotesCountDaysForAKnownCard(t *testing.T) {
+	cards := deck()
+	a := newApp(t, cards, &recorder{}, Review, 80, 24)
+	want := srs.Review(cards[0], domain.Good.Grade(), fixedNow).IntervalDays
 
-	mustNotContain(t, screen(a), "Coach", "seen")
+	mustContain(t, screen(a), fmt.Sprintf("next if good: in %d days", want))
+}
+
+func TestMarginNotesToggle(t *testing.T) {
+	a := newApp(t, deck(), &recorder{}, Review, 120, 24) // c is a letter while typing
+
+	a, _ = press(t, a, "c")
+	mustNotContain(t, screen(a), "Margin notes")
+
+	a, _ = press(t, a, "c")
+	mustContain(t, screen(a), "Margin notes")
+}
+
+func TestRevealedCardIsANotebookPage(t *testing.T) {
+	a := newApp(t, deck(), &recorder{}, Review, 80, 24)
+	mustNotContain(t, screen(a), "In context", "Meaning")
+
+	a, _ = press(t, a, "space")
+
+	mustContain(t, screen(a), "In context", `"Hello, how are you?"`, "Meaning", "Hola",
+		"How well did you remember it?", "1 again", "2 hard", "3 good", "4 easy")
 }
 
 // --- session end ---
@@ -351,8 +375,8 @@ func TestSessionEndSummary(t *testing.T) {
 	a = finish(t, a, clock)
 
 	v := screen(a)
-	mustContain(t, v, "Done. 5 reviewed in 2 min.", "✓ 3", "✗ 2", "Tricky today", "hello", "hi",
-		"Next review", "tomorrow · 5 cards", "r review the 2 mistakes again", "enter home")
+	mustContain(t, v, "Done for today.  5 words in 2 min.", "✓ 3", "✗ 2", "Watch these", "hello", "hi",
+		"Next page", "tomorrow · 5 cards", "r practice the 2 mistakes again", "enter home")
 	mustContain(t, statusBar(a), "r again", "enter home")
 
 	a, _ = press(t, a, "enter")
@@ -370,7 +394,7 @@ func TestSessionEndListsAtMostThreeTrickyWords(t *testing.T) {
 	}
 
 	v := screen(a)
-	mustContain(t, v, "Done. 5 reviewed in 1 min.", "hello", "hi", "nice to meet you")
+	mustContain(t, v, "Done for today.  5 words in 1 min.", "hello", "hi", "nice to meet you")
 	mustNotContain(t, v, "Argentina", "Brazil")
 }
 
@@ -382,8 +406,8 @@ func TestSessionEndWithoutMistakes(t *testing.T) {
 	}
 
 	v := screen(a)
-	mustNotContain(t, v, "Tricky today", "mistakes again")
-	mustContain(t, v, "▸ enter home")
+	mustNotContain(t, v, "Watch these", "mistakes again")
+	mustContain(t, v, "enter back home")
 	if _, cmd := press(t, a, "r"); cmd != nil {
 		t.Error("r without mistakes should do nothing")
 	}
@@ -396,14 +420,14 @@ func TestReviewMistakesAgainDoesNotChangeSchedules(t *testing.T) {
 	saves := len(rec.saved)
 
 	a, _ = press(t, a, "r")
-	mustContain(t, screen(a), "hello", "1 / 2")
+	mustContain(t, screen(a), "hello", "Page 1 of 2")
 	a, _ = press(t, a, "space", "3", "space", "1")
 
 	if len(rec.saved) != saves {
 		t.Errorf("the mistakes round saved %d cards, want none", len(rec.saved)-saves)
 	}
 	v := screen(a)
-	mustContain(t, v, "Done. 5 reviewed", "✓ 3", "✗ 2", "Mistakes round", "✓ 1", "✗ 1")
+	mustContain(t, v, "Done for today.  5 words", "✓ 3", "✗ 2", "Mistakes round", "✓ 1", "✗ 1")
 	mustContain(t, statusBar(a), "✓ 3", "✗ 2")
 }
 
@@ -414,8 +438,8 @@ func TestUndoAfterTheLastCardReopensIt(t *testing.T) {
 
 	a, _ = press(t, a, "u")
 
-	mustContain(t, screen(a), "Brazil", "5 / 5")
-	mustNotContain(t, screen(a), "Done.")
+	mustContain(t, screen(a), "Brazil", "Page 5 of 5")
+	mustNotContain(t, screen(a), "Done for today.")
 }
 
 // --- session cap ---
@@ -430,7 +454,7 @@ func TestSessionCapsNewCards(t *testing.T) {
 	for _, tt := range []struct{ maxNew, want int }{{DefaultMaxNew, 21}, {3, 4}, {0, 1}} {
 		a := NewApp(Config{Cards: cards, Save: (&recorder{}).save, Now: (&testClock{fixedNow}).now, MaxNew: tt.maxNew, Start: Review})
 
-		mustContain(t, screen(a), fmt.Sprintf("1 / %d", tt.want))
+		mustContain(t, screen(a), fmt.Sprintf("Page 1 of %d", tt.want))
 		mustContain(t, screen(a), "hello") // due cards come first
 	}
 }
@@ -445,7 +469,7 @@ func TestReviewProgressSurvivesLeavingTheScreen(t *testing.T) {
 	if a.Screen() != Review {
 		t.Fatalf("enter on Home should resume the review, got %v", a.Screen())
 	}
-	mustContain(t, screen(a), "2 / 5")
+	mustContain(t, screen(a), "Page 2 of 5")
 	a, _ = press(t, a, "esc")
 	mustContain(t, screen(a), "Review 4 words")
 }

@@ -6,28 +6,33 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-// colors holds one color per role from design/DESIGN.md. Dark values are the
-// ones in DESIGN.md; light values are darker shades of the same hues so text
-// stays readable on a light terminal. Primary text uses the terminal's own
+// colors holds one color per role of the notebook palette
+// (design/DESIGN.md §3): warm paper tones, an amber accent and a red margin
+// line. Light values are darker shades of the same hues so text stays
+// readable on a light terminal. Primary text uses the terminal's own
 // foreground, so it has no entry here.
 type colors struct {
 	accent, secondary, muted       color.Color
 	success, warning, danger, info color.Color
-	chrome                         color.Color // background of the rail, coach and status bar
+	margin                         color.Color // the notebook's margin line
+	highlight                      color.Color // marker behind the word being learned
+	chrome                         color.Color // background of the top and bottom bars
 }
 
 func newColors(dark bool) colors {
 	ld := lipgloss.LightDark(dark)
 	c := lipgloss.Color
 	return colors{
-		accent:    ld(c("#2E7DE9"), c("#7AA2F7")),
-		secondary: ld(c("#6172B0"), c("#A0A0B0")),
-		muted:     ld(c("#8990B3"), c("#6C6C7A")),
-		success:   ld(c("#587539"), c("#9ECE6A")),
-		warning:   ld(c("#8C6C3E"), c("#E0AF68")),
-		danger:    ld(c("#C64343"), c("#F7768E")),
-		info:      ld(c("#007197"), c("#7DCFFF")),
-		chrome:    ld(c("#EEEEF2"), c("#1E1E26")),
+		accent:    ld(c("#9A6700"), c("#E6B450")),
+		secondary: ld(c("#5C574C"), c("#C5BFAE")),
+		muted:     ld(c("#8A8578"), c("#6F6A5E")),
+		success:   ld(c("#5B7F23"), c("#A6CC70")),
+		warning:   ld(c("#B05A00"), c("#FFB454")),
+		danger:    ld(c("#C8383F"), c("#F07178")),
+		info:      ld(c("#2F6DB5"), c("#73B8FF")),
+		margin:    ld(c("#C0545A"), c("#B8545A")),
+		highlight: ld(c("#F5E6BF"), c("#3A3424")),
+		chrome:    ld(c("#EFEBE3"), c("#26282A")),
 	}
 }
 
@@ -48,6 +53,9 @@ type roles struct {
 	danger    lipgloss.Style
 	info      lipgloss.Style
 	rule      lipgloss.Style // separators between regions
+	word      lipgloss.Style // the English being learned, on the highlight marker
+	prompt    lipgloss.Style // the Spanish prompt on the marker; never bold
+	margin    lipgloss.Style // the notebook's margin line
 	inserted  lipgloss.Style // letters the learner missed
 	deleted   lipgloss.Style // letters the learner typed by mistake
 }
@@ -72,6 +80,9 @@ func newRoles(p colors, bg color.Color) roles {
 		danger:    fg(p.danger),
 		info:      fg(p.info),
 		rule:      fg(p.muted),
+		word:      fg(p.accent).Background(p.highlight).Bold(true),
+		prompt:    fg(p.accent).Background(p.highlight),
+		margin:    fg(p.margin),
 		inserted:  fg(p.success).Underline(true),
 		deleted:   fg(p.danger).Strikethrough(true),
 	}
@@ -80,7 +91,7 @@ func newRoles(p colors, bg color.Color) roles {
 // styles is everything View needs to paint the app.
 type styles struct {
 	main   roles // the content pane
-	chrome roles // rail, coach and status bar
+	chrome roles // top and bottom bars
 }
 
 func newStyles(dark bool) styles {

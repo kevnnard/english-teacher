@@ -31,8 +31,8 @@ func TestHomePreselectsReviewWithMinutes(t *testing.T) {
 	v := screen(a)
 
 	mustContain(t, v, "▸ Review 5 words", "~3 min", "enter")
-	if n := strings.Count(v, "▸"); n != 2 { // one in the rail, one action
-		t.Errorf("want exactly one preselected action besides the rail cursor, found %d ▸:\n%s", n, v)
+	if n := strings.Count(v, "▸"); n != 1 {
+		t.Errorf("want exactly one preselected action, found %d ▸:\n%s", n, v)
 	}
 
 	a, _ = press(t, a, "enter")

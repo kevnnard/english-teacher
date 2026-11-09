@@ -1,5 +1,5 @@
 // Package tui holds the Bubbletea app of the teacher: one root model that
-// owns the screens, the adaptive layout and the global keys.
+// owns the screens, the notebook page layout and the global keys.
 package tui
 
 import (
@@ -28,7 +28,7 @@ const (
 	Stats
 )
 
-// screens is the order of the rail and of tab / shift+tab.
+// screens is the order of the tabs and of tab / shift+tab.
 var screens = []Screen{Home, Review, Learn, Write, Words, Stats}
 
 func (s Screen) String() string {
@@ -56,7 +56,7 @@ type App struct {
 	screen        Screen
 	width, height int // terminal size; zero until the first WindowSizeMsg
 	st            styles
-	coach         bool // the learner wants the coach panel (shown only when wide)
+	notes         bool // the learner wants the margin notes under the review card
 	help          bool
 	palette       palette
 	review        session // today's session; its counts feed the status bar
@@ -76,7 +76,7 @@ func NewApp(cfg Config) App {
 		now:    cfg.Now,
 		screen: cfg.Start,
 		st:     newStyles(true), // until the terminal reports its background
-		coach:  true,
+		notes:  true,
 		review: newSession(cards, queue, false, cfg.Now()),
 	}
 }
@@ -137,7 +137,7 @@ func (a App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "esc":
 		a.screen = Home
 	case "c":
-		a.coach = !a.coach
+		a.notes = !a.notes
 	case "q":
 		if a.screen == Home {
 			return a, tea.Quit
@@ -178,18 +178,10 @@ func (a App) updateScreen(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 // View implements tea.Model.
 func (a App) View() tea.View {
 	w, h := a.size()
-	body := max(h-1, 0) // the last row is the status bar
-
-	var rows []string
-	switch a.layout() {
-	case focusLayout:
-		rows = append([]string{a.progressLine(w)}, a.pane(w, max(body-1, 0))...)
-	case railLayout:
-		rows = joinColumns(a.rail(body), a.pane(w-railWidth, body))
-	case wideLayout:
-		rows = joinColumns(a.rail(body), a.pane(w-railWidth-coachWidth, body), a.coachPanel(body))
-	}
-	rows = append(rows[:min(len(rows), body)], a.statusBar(w))
+	rows := []string{a.header(w)}
+	rows = append(rows, a.page(w, max(h-2, 0))...)
+	rows = append(rows, a.statusBar(w))
+	rows = rows[:min(len(rows), max(h, 1))]
 
 	v := tea.NewView(strings.Join(rows, "\n"))
 	v.AltScreen = true

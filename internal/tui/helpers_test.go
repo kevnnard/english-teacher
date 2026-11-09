@@ -158,6 +158,12 @@ func screen(a App) string { return ansi.Strip(a.View().Content) }
 
 func screenLines(a App) []string { return strings.Split(screen(a), "\n") }
 
+// pageText is the view without the top bar and the status bar.
+func pageText(a App) string {
+	lines := screenLines(a)
+	return strings.Join(lines[1:len(lines)-1], "\n")
+}
+
 func statusBar(a App) string {
 	l := screenLines(a)
 	return l[len(l)-1]
