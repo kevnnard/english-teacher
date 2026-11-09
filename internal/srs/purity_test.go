@@ -21,7 +21,7 @@ var allowedImports = map[string]bool{
 }
 
 func TestPackagesArePure(t *testing.T) {
-	for _, dir := range []string{".", "../domain", "../check"} {
+	for _, dir := range []string{".", "../domain", "../check", "../progress"} {
 		files, err := filepath.Glob(filepath.Join(dir, "*.go"))
 		if err != nil {
 			t.Fatal(err)
