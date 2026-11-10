@@ -102,7 +102,7 @@ never resets a review schedule, and keeps the name and goal you set.
 
 ## The screens
 
-Screens: **Home** (one preselected next action), **Review** (cards due today),
+**Home** (one preselected next action), **Review** (cards due today),
 **Learn** (a short reading written for you), **Write** (a writing task you
 correct with the AI), **Talk** (a guided role-play with the AI), **Fluency** (the same story
 three times, faster each time), **Quiz** (vocabulary from your cards or
