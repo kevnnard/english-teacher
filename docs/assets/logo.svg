@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="english-teacher logo">
+  <title>english-teacher</title>
+  <rect width="128" height="128" rx="28" fill="#1c1d1f"/>
+  <rect x="4" y="4" width="120" height="120" rx="24" fill="none" stroke="#2e3033" stroke-width="2"/>
+  <!-- notebook page: ruled lines and the red margin -->
+  <rect x="26" y="24" width="64" height="80" rx="6" fill="#f5efe1"/>
+  <g stroke="#c9bfa8" stroke-width="2">
+    <line x1="42" y1="44" x2="84" y2="44"/>
+    <line x1="42" y1="56" x2="84" y2="56"/>
+    <line x1="42" y1="68" x2="84" y2="68"/>
+    <line x1="42" y1="80" x2="74" y2="80"/>
+    <line x1="42" y1="92" x2="68" y2="92"/>
+  </g>
+  <line x1="37" y1="24" x2="37" y2="104" stroke="#c0545a" stroke-width="3"/>
+  <!-- amber speech bubble -->
+  <path d="M70 58 h32 a8 8 0 0 1 8 8 v18 a8 8 0 0 1 -8 8 h-14 l-10 9 v-9 h-8 a8 8 0 0 1 -8 -8 v-18 a8 8 0 0 1 8 -8 z" fill="#e6b450"/>
+  <text x="86" y="82" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="17" font-weight="700" fill="#1c1d1f">Aa</text>
+</svg>

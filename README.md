@@ -1,40 +1,106 @@
-# english-teacher
+<p align="center">
+  <img src="docs/assets/banner.svg" alt="english-teacher: review, read, write and talk, in your terminal" width="880">
+</p>
 
-A personal English teacher in the terminal, written in Go.
+<p align="center">
+  A personal English teacher in the terminal: spaced review of your own words,<br>
+  graded reading, writing with focused feedback, role-plays, fluency drills and quizzes.
+</p>
 
-## Usage
+<p align="center">
+  <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-PolyForm%20Strict%201.0.0-e6b450?style=flat-square" alt="License: PolyForm Strict 1.0.0"></a>
+  <img src="https://img.shields.io/badge/macOS%20%7C%20Linux-terminal-a6cc70?style=flat-square" alt="macOS and Linux">
+  <img src="https://img.shields.io/badge/Go-1.27-73b8ff?style=flat-square" alt="Go 1.27">
+  <img src="https://img.shields.io/badge/version-0.1.0-f07178?style=flat-square" alt="Version 0.1.0">
+</p>
 
-```sh
-go build ./cmd/teacher
+<p align="center">
+  <a href="#install">Install</a> · <a href="#quick-start">Quick start</a> · <a href="#the-screens">Screens</a> · <a href="#keys">Keys</a> · <a href="#the-ai-teacher">AI</a> · <a href="#why-it-works">Why it works</a> · <a href="#license">License</a>
+</p>
 
-# Import (or re-import) the whole english-master progress folder:
-# vocabulary-bank.md, plus level.md, streak.md and daily-log.md when present.
-# Re-importing never duplicates cards or days, never resets a review schedule,
-# and keeps the name and goal you set. A single bank file also works.
-./teacher import ~/Projects/english-master/progress
-./teacher import ~/Projects/english-master/progress/vocabulary-bank.md
-
-# Your name (Home greets you with it) and your daily goal in minutes (default 20).
-./teacher set name Kevin
-./teacher set goal 25
-
-# Open the app on Home, or straight on today's review.
-./teacher
-./teacher review
-
-# At most 5 never-reviewed words in this session (default 20).
-./teacher --new 5 review
-
-# The AI model of each capability, and how to change one.
-./teacher models
-./teacher set model writing claude-bridge/claude-opus-5-5
+```text
+ Monday 9 Nov  ·  Home                    Home  Review  Learn  Write  Talk  Fluency  Quiz  Words  Stats
+      │
+      │   Good evening.
+      │
+      │   ▸ Review 5 words          ~3 min      enter
+      │
+      │   Words   ● 3 due   ◐ 1 learning   ✓ 1 known   ○ 2 new
+      │
+      │   Streak  0 days — review today to start one
+      │   Today   0 of 20 min  ▱▱▱▱▱▱▱▱▱▱
+      │   Week    Tu ○  We ○  Th ○  Fr ○  Sa ○  Su ○  Mo ○
+      │
+ A1  ·  5 due                                   enter start · tab screens · : palette · ? help · q quit
 ```
 
-The database lives at `$XDG_DATA_HOME/english-teacher/teacher.db`
-(`~/.local/share/english-teacher/teacher.db` if unset). Use `--db path` before
-the command to pick another file, e.g. `./teacher --db /tmp/test.db review`.
+<sub>Home with sample data. Every screen is a notebook page, in light or dark terminals.</sub>
 
-## The app
+## What it answers
+
+| | Question | Where you see it |
+|:-:|:--|:--|
+| 🔁 | **Which words do I need to review today?** | **Review**: spaced repetition (SM-2), recognize then produce |
+| 📖 | **Can I read something at my level?** | **Learn**: a short text with at most 3 new words |
+| ✍️ | **What am I getting wrong when I write?** | **Write**: fix your own errors, then rewrite them from memory |
+| 💬 | **Can I hold a simple conversation?** | **Talk**: guided role-plays with gentle recasts |
+| ⏱️ | **Can I say it faster?** | **Fluency**: the same story in 4, 3 and 2 minutes |
+| ✅ | **What do I really remember?** | **Quiz**: vocabulary from your cards, grammar on your errors |
+| 🔥 | **Am I keeping it up?** | **Home** and **Stats**: streak, daily goal and study log |
+
+## Install
+
+```bash
+brew install kevnnard/tap/english-teacher
+```
+
+<details>
+<summary>Build from source</summary>
+
+```bash
+go install github.com/kevnnard/english-teacher/cmd/teacher@latest
+```
+
+The binary lands in `~/go/bin`; add `export PATH="$HOME/go/bin:$PATH"` to your
+shell profile if `teacher` is not found. Building needs Go 1.27; no cgo.
+</details>
+
+Review, Fluency and the vocabulary quiz work offline. Learn, Write, Talk and
+the grammar quiz need [the AI teacher](#the-ai-teacher).
+
+## Quick start
+
+```bash
+teacher set name Ana         # Home greets you by name
+teacher set goal 20          # daily goal in minutes (default 20)
+teacher import ./progress    # optional: bring in an existing vocabulary bank
+teacher                      # open the app on Home
+```
+
+`tab` moves between screens, `?` shows the keys of the current one, and Home
+always preselects the next thing to do: press `enter`.
+
+## Commands
+
+```text
+teacher [--db path] [--new n]                    open the app on Home
+teacher [--db path] [--new n] review             open the app on Review
+teacher [--db path] import <vocabulary-bank.md>  import a vocabulary bank
+teacher [--db path] import <progress-folder>     import the bank, level.md and history
+teacher [--db path] set name <name>              set your name
+teacher [--db path] set goal <minutes>           set the daily goal (default 20)
+teacher models                                   list the AI model of each capability
+teacher set model <capability> <provider/model>  reading, writing, conversation or quiz
+teacher --version                                print the version
+```
+
+`--new n` caps the never-reviewed words per session (default 20). Importing is
+optional and safe to repeat: a vocabulary bank is a markdown file of words and
+meanings, and a progress folder adds `level.md`, `streak.md` and
+`daily-log.md` when present. Re-importing never duplicates cards or days,
+never resets a review schedule, and keeps the name and goal you set.
+
+## The screens
 
 Screens: **Home** (one preselected next action), **Review** (cards due today),
 **Learn** (a short reading written for you), **Write** (a writing task you
@@ -57,59 +123,6 @@ until the end of the day after your last study day. Study time is the time
 between grades, at most 2 minutes per card, so leaving the app open does not
 count.
 Word status is always a glyph plus a word: `● due`, `◐ learning`, `✓ known`, `○ new`.
-
-### Keys
-
-The `?` overlay shows the keys that work everywhere plus those of the
-current screen.
-
-| Where | Key | Action |
-|---|---|---|
-| everywhere | `tab` / `shift+tab` | next / previous screen |
-| | `:` | command palette: type a screen name, `enter` to go |
-| | `?` | show / hide help |
-| | `c` | show / hide the margin notes during review |
-| | `esc` | back to Home |
-| | `q` | quit on Home, back to Home elsewhere |
-| | `ctrl+c` | quit |
-| Home | `enter` | start the preselected action |
-| Review | `space` | reveal the answer (English → Spanish) |
-| | `1`–`4` | grade your recall: 1 again · 2 hard · 3 good · 4 easy |
-| | `enter` | check a typed answer (Spanish → English) |
-| | `u` / `ctrl+z` | undo the last grade (`ctrl+z` also works while typing an answer) |
-| | `r` | review the session's mistakes again (dates don't move) |
-| Learn | `enter` | get a short text written for you |
-| | `↑` `↓` / `j` `k` | move through the glossary |
-| | `space` | mark or unmark a word to study |
-| | `a` | done: add the marked words as cards |
-| | `n` | a new text |
-| Write | `enter` | get a task; while writing, a new line |
-| | `ctrl+d` | send your text to the teacher |
-| | `enter` | fixing or rewriting: submit (empty: I don't know) |
-| | `d` | show / hide the minor details in the feedback |
-| | `s` | save the error cards again if saving failed |
-| | `n` | a new task from the feedback or the result |
-| | `esc` | back to Home; your work stays |
-| Talk | `↑` `↓` / `j` `k` | choose a situation |
-| | `enter` | start it; while talking, send your line (after a failed answer, the same line again) |
-| | `ctrl+d` | finish the role-play early and get feedback |
-| | `s` | save the error cards again if saving failed |
-| | `n` | a new role-play from the feedback |
-| | `esc` | back to Home; the conversation stays |
-| Fluency | `↑` `↓` / `j` `k` | choose a topic (the last one: type your own) |
-| | `enter` | pick it; then start each round's clock |
-| | `ctrl+d` | end the round early; the time stops |
-| | `n` | a new topic between rounds or from the result |
-| | `esc` | back to Home; the clock keeps running |
-| Quiz | `↑` `↓` / `j` `k` | choose a vocabulary or a grammar quiz |
-| | `enter` | start it; after the feedback, the next question |
-| | `1`–`4` | choose an option |
-| | `enter` | check a typed answer (empty: I don't know) |
-| | `enter` | after a failed grammar quiz: try again |
-| | `n` | a new quiz from the result |
-| | `esc` | back to Home; the quiz stays |
-| Words | `/` | filter by word or meaning (`enter` keep · `esc` clear) |
-| | `↑` `↓` / `j` `k` | scroll |
 
 ### Review
 
@@ -252,22 +265,89 @@ again (a grammar item with its why). The quiz counts as study
 you answer the last question; leaving earlier records nothing. `n` starts a
 new quiz; `esc` goes Home and keeps the quiz.
 
+## Configuration and data
+
 Models live in `$XDG_CONFIG_HOME/english-teacher/config.json`
 (`~/.config/english-teacher/config.json`); `--config path` picks another.
 The defaults are Sonnet for reading, writing and conversation and Haiku for
 quizzes; any model in `pi --list-models` works. A `"pi"` key sets the path of
 the `pi` binary.
 
-## Roadmap
 
-- **M1** — Vocabulary review TUI with spaced repetition (SM-2), importing the existing vocabulary bank. No AI. Done.
-- **M2** — Streak, CEFR level, daily goal and daily log in SQLite. Done.
-- **M3** — AI teacher: graded reading and writing correction, errors become cards, one model per capability. Done.
-- **M4** — Guided role-plays (Talk), written 4/3/2 fluency (Fluency) and quizzes (Quiz). Done.
-- **v0.1.0** — M1–M4: every text feature. `teacher --version` prints it; see [CHANGELOG.md](CHANGELOG.md).
-- **v0.2.0** — Voice: shadowing, pronunciation and minimal pairs.
+<details>
+<summary>Where your data lives</summary>
 
-## Layout
+Everything stays on your machine, in SQLite:
+`$XDG_DATA_HOME/english-teacher/teacher.db` (`~/.local/share/english-teacher/teacher.db`
+if unset). `--db path` before the command picks another file, e.g.
+`teacher --db /tmp/test.db review`. The schema migrates in place on start.
+</details>
+
+## Why it works
+
+- **Four strands** (Nation): meaning-focused input (Learn), meaning-focused output (Write, Talk), language-focused learning (Review, Quiz) and fluency (Fluency), in roughly equal time.
+- **Spaced repetition** (SM-2): each word comes back just before you would forget it, in both directions.
+- **Graded reading**: at about 98% known words you learn the rest from context; Learn adds at most 3 new ones.
+- **Focused written feedback**: a few major errors, direct and explained, work better than marking everything.
+- **Self-correction, then rewriting**: trying first makes you notice the gap; rewriting from memory is what makes the fix stick.
+- **Recasts**: in conversation the right form is woven into the reply, so you keep talking.
+- **4/3/2**: retelling the same story with less time builds fluency with words you already know.
+
+## Keys
+
+The `?` overlay shows the keys that work everywhere plus those of the
+current screen.
+
+| Where | Key | Action |
+|---|---|---|
+| everywhere | `tab` / `shift+tab` | next / previous screen |
+| | `:` | command palette: type a screen name, `enter` to go |
+| | `?` | show / hide help |
+| | `c` | show / hide the margin notes during review |
+| | `esc` | back to Home |
+| | `q` | quit on Home, back to Home elsewhere |
+| | `ctrl+c` | quit |
+| Home | `enter` | start the preselected action |
+| Review | `space` | reveal the answer (English → Spanish) |
+| | `1`–`4` | grade your recall: 1 again · 2 hard · 3 good · 4 easy |
+| | `enter` | check a typed answer (Spanish → English) |
+| | `u` / `ctrl+z` | undo the last grade (`ctrl+z` also works while typing an answer) |
+| | `r` | review the session's mistakes again (dates don't move) |
+| Learn | `enter` | get a short text written for you |
+| | `↑` `↓` / `j` `k` | move through the glossary |
+| | `space` | mark or unmark a word to study |
+| | `a` | done: add the marked words as cards |
+| | `n` | a new text |
+| Write | `enter` | get a task; while writing, a new line |
+| | `ctrl+d` | send your text to the teacher |
+| | `enter` | fixing or rewriting: submit (empty: I don't know) |
+| | `d` | show / hide the minor details in the feedback |
+| | `s` | save the error cards again if saving failed |
+| | `n` | a new task from the feedback or the result |
+| | `esc` | back to Home; your work stays |
+| Talk | `↑` `↓` / `j` `k` | choose a situation |
+| | `enter` | start it; while talking, send your line (after a failed answer, the same line again) |
+| | `ctrl+d` | finish the role-play early and get feedback |
+| | `s` | save the error cards again if saving failed |
+| | `n` | a new role-play from the feedback |
+| | `esc` | back to Home; the conversation stays |
+| Fluency | `↑` `↓` / `j` `k` | choose a topic (the last one: type your own) |
+| | `enter` | pick it; then start each round's clock |
+| | `ctrl+d` | end the round early; the time stops |
+| | `n` | a new topic between rounds or from the result |
+| | `esc` | back to Home; the clock keeps running |
+| Quiz | `↑` `↓` / `j` `k` | choose a vocabulary or a grammar quiz |
+| | `enter` | start it; after the feedback, the next question |
+| | `1`–`4` | choose an option |
+| | `enter` | check a typed answer (empty: I don't know) |
+| | `enter` | after a failed grammar quiz: try again |
+| | `n` | a new quiz from the result |
+| | `esc` | back to Home; the quiz stays |
+| Words | `/` | filter by word or meaning (`enter` keep · `esc` clear) |
+| | `↑` `↓` / `j` `k` | scroll |
+
+
+## Project layout
 
 ```
 cmd/teacher/        CLI entry point
@@ -275,9 +355,38 @@ internal/domain/    pure types: Card, Grade, Answer, Direction
 internal/srs/       SM-2 scheduler and session planning (pure, no I/O)
 internal/check/     typed-answer check and letter diff (pure)
 internal/progress/  streak, week and daily totals (pure, no I/O)
-internal/importer/  imports english-master markdown data
+internal/importer/  imports a markdown vocabulary bank and progress folder
 internal/store/     SQLite persistence
 internal/llm/pi/    runs the AI through the pi CLI
 internal/teacher/   AI teacher use cases: prompts and answers
 internal/tui/       Bubbletea screens
 ```
+
+## Roadmap
+
+- **0.1.0** — every text feature: Review, Learn, Write, Talk, Fluency, Quiz, streak and daily log. See [CHANGELOG.md](CHANGELOG.md).
+- **0.2.0** — voice: shadowing, pronunciation and minimal pairs.
+
+## Releasing
+
+Releases are cut from `main` by one script: it runs the tests, tags and pushes,
+creates the GitHub release and rewrites the Homebrew formula in the tap. The
+version is injected at build time (`-X main.version`).
+
+```bash
+TAP_DIR=../homebrew-tap scripts/release.sh --dry-run 0.1.0   # show every step
+TAP_DIR=../homebrew-tap scripts/release.sh 0.1.0
+```
+
+## License
+
+**english-teacher is source-available, not open source.** You can read the code, build it and use it for personal, noncommercial purposes.
+
+You may **not**:
+- share or redistribute it, in source or binary form;
+- publish modified versions or new works based on it;
+- use it commercially.
+
+The full terms are in [PolyForm Strict License 1.0.0](LICENSE.md).
+
+Copyright © 2026 Kevnnard.
