@@ -165,7 +165,7 @@ func (t *Teacher) WritingTask(ctx context.Context, level domain.Level, recent, f
 	}
 	var phrases []string
 	for _, p := range out.Phrases {
-		if p = strings.TrimSpace(p); p != "" && len(phrases) < MaxPhrases {
+		if p = strings.TrimSpace(p); p != "" && len(phrases) < MaxPhrases && !hasFold(phrases, p) {
 			phrases = append(phrases, p)
 		}
 	}
@@ -185,11 +185,16 @@ func fillPhrases(phrases, recent []string) []string {
 			break
 		}
 		w = strings.TrimSpace(w)
-		if w != "" && !slices.ContainsFunc(phrases, func(p string) bool { return strings.EqualFold(p, w) }) {
+		if w != "" && !hasFold(phrases, w) {
 			phrases = append(phrases, w)
 		}
 	}
 	return phrases
+}
+
+// hasFold reports whether phrases already holds s, ignoring case.
+func hasFold(phrases []string, s string) bool {
+	return slices.ContainsFunc(phrases, func(p string) bool { return strings.EqualFold(p, s) })
 }
 
 // Correct corrects text, written for task. Fixes are recasts: the correct

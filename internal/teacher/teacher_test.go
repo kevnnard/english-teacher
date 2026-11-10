@@ -322,6 +322,7 @@ func TestWritingTaskFillsPhrasesFromRecentWords(t *testing.T) {
 		{"one from the model", `{"task":"t","hint":"h","phrases":["My name is"]}`, []string{"my name is", "dog"}, "My name is|dog"},
 		{"enough already", `{"task":"t","hint":"h","phrases":["a","b","c"]}`, []string{"dog"}, "a|b|c"},
 		{"empty deck", `{"task":"t","hint":"h"}`, nil, ""},
+		{"duplicate from the model", `{"task":"t","hint":"h","phrases":["Hello","hello"]}`, []string{"HELLO", "dog"}, "Hello|dog"},
 	}
 	for _, tt := range tests {
 		task, err := New(models(&fakeModel{reply: tt.reply})).WritingTask(context.Background(), domain.A1, tt.recent, nil)
