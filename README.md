@@ -38,7 +38,8 @@ the command to pick another file, e.g. `./teacher --db /tmp/test.db review`.
 
 Screens: **Home** (one preselected next action), **Review** (cards due today),
 **Learn** (a short reading written for you), **Write** (a writing task you
-correct with the AI), **Talk** (a guided role-play with the AI), **Words** (every word with its status) and **Stats**. Every screen is a notebook page: the top bar shows the date,
+correct with the AI), **Talk** (a guided role-play with the AI), **Fluency** (the same story
+three times, faster each time), **Words** (every word with its status) and **Stats**. Every screen is a notebook page: the top bar shows the date,
 the page ("Page 3 of 26" during a review) and the screen tabs; a margin line
 runs down the left (6 columns in from the edge on terminals 100+ columns
 wide, 2 on narrower ones) and the text never gets wider than 76 columns.
@@ -94,6 +95,11 @@ current screen.
 | | `s` | save the error cards again if saving failed |
 | | `n` | a new role-play from the feedback |
 | | `esc` | back to Home; the conversation stays |
+| Fluency | `↑` `↓` / `j` `k` | choose a topic (the last one: type your own) |
+| | `enter` | pick it; then start each round's clock |
+| | `ctrl+d` | end the round early; the time stops |
+| | `n` | a new topic between rounds or from the result |
+| | `esc` | back to Home; the clock keeps running |
 | Words | `/` | filter by word or meaning (`enter` keep · `esc` clear) |
 | | `↑` `↓` / `j` `k` | scroll |
 
@@ -191,6 +197,24 @@ say how to turn it on and the rest of the app works as before.
   when the feedback arrives; leaving before that records nothing. `n` picks
   a new role-play; `esc` goes Home and keeps the conversation.
 
+### Fluency
+
+Fluency is the written 4/3/2 exercise: tell the same story three times, in
+4, 3 and 2 minutes, so the words you already know come out faster. It uses
+no AI, so it works without `pi`. Pick a topic (*Your morning routine*,
+*Your best friend*, *Your last weekend*, *Your home*, *Your favorite food*)
+or the last entry to type your own. Each round starts on `enter`; the
+clock counts down on the page and every key is a letter while it runs
+(`enter` is a new line). When the time is up the round ends and the text
+locks; `ctrl+d` ends it early. Words per minute is the words of the text
+(split on spaces) divided by the minutes used, at most the round's limit.
+The result shows one line per round (`Round 1 · 4:00 · 38 words · 9.5 wpm`)
+and the change from round 1 to round 3. The session counts as study
+(`Fluency: Your home`, the real time since round 1 began, at most 9
+minutes) when round 3 ends; leaving earlier records nothing. `esc` goes
+Home and the clock keeps running, so a round can end while you are
+elsewhere; `n` picks a new topic between rounds or from the result.
+
 Models live in `$XDG_CONFIG_HOME/english-teacher/config.json`
 (`~/.config/english-teacher/config.json`); `--config path` picks another.
 The defaults are Sonnet for reading, writing and conversation and Haiku for
@@ -202,7 +226,7 @@ the `pi` binary.
 - **M1** — Vocabulary review TUI with spaced repetition (SM-2), importing the existing vocabulary bank. No AI.
 - **M2** — Streak, CEFR level, daily goal and daily log in SQLite. Done.
 - **M3** — AI teacher: graded reading and writing correction, errors become cards, one model per capability. Done.
-- **M4** — Guided role-plays (Talk, done), written 4/3/2 fluency and quizzes.
+- **M4** — Guided role-plays (Talk, done), written 4/3/2 fluency (Fluency, done) and quizzes.
 - **M5** — Voice: speech-to-text and pronunciation practice.
 
 ## Layout
