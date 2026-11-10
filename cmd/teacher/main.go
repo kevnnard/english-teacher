@@ -8,6 +8,8 @@
 //	teacher [--db path] import <progress-folder>         import bank, level and history
 //	teacher [--db path] set name <name>                  set the learner's name
 //	teacher [--db path] set goal <minutes>               set the daily goal
+//	teacher [--config path] models                       list the model of each capability
+//	teacher [--config path] set model <capability> <m>   set the model of one capability
 package main
 
 import (
@@ -37,6 +39,8 @@ const usage = `usage:
   teacher [--db path] import <progress-folder>     import the bank, level.md and history
   teacher [--db path] set name <name>              set your name
   teacher [--db path] set goal <minutes>           set the daily goal (default 20)
+  teacher models                                   list the AI model of each capability
+  teacher set model <capability> <provider/model>  reading, writing, conversation or quiz
 
   --new n  most never-reviewed cards per session (default 20)`
 
@@ -55,6 +59,7 @@ func run(args []string, stdout io.Writer) error {
 	fs.SetOutput(io.Discard) // errors are returned, not printed twice
 	dbPath := fs.String("db", defaultDBPath(os.Getenv("XDG_DATA_HOME"), home), "path to the SQLite database")
 	maxNew := fs.Int("new", tui.DefaultMaxNew, "most never-reviewed cards per session")
+	configPath := fs.String("config", defaultConfigPath(os.Getenv("XDG_CONFIG_HOME"), home), "path to config.json")
 	if err := fs.Parse(args); err != nil {
 		return fmt.Errorf("%w\n%s", err, usage)
 	}
@@ -62,7 +67,7 @@ func run(args []string, stdout io.Writer) error {
 		return fmt.Errorf("--new must be 0 or more, got %d", *maxNew)
 	}
 
-	opts := appOptions{dbPath: *dbPath, start: tui.Home, maxNew: *maxNew}
+	opts := appOptions{dbPath: *dbPath, configPath: *configPath, start: tui.Home, maxNew: *maxNew}
 	if fs.NArg() == 0 {
 		return startApp(opts)
 	}
@@ -75,7 +80,15 @@ func run(args []string, stdout io.Writer) error {
 		}
 		return runImport(*dbPath, rest[0], stdout)
 	case "set":
+		if len(rest) > 0 && rest[0] == "model" {
+			return setModel(*configPath, rest[1:], stdout)
+		}
 		return runSet(*dbPath, rest, stdout)
+	case "models":
+		if len(rest) != 0 {
+			return errors.New(usage)
+		}
+		return runModels(*configPath, stdout)
 	case "review":
 		if len(rest) != 0 {
 			return errors.New(usage)
@@ -297,9 +310,10 @@ func runSet(dbPath string, args []string, stdout io.Writer) error {
 
 // appOptions is how the app was asked to open.
 type appOptions struct {
-	dbPath string
-	start  tui.Screen
-	maxNew int
+	dbPath     string
+	configPath string
+	start      tui.Screen
+	maxNew     int
 }
 
 // loadCards reads every word in both directions: recognition first, which
