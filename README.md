@@ -260,11 +260,12 @@ the `pi` binary.
 
 ## Roadmap
 
-- **M1** — Vocabulary review TUI with spaced repetition (SM-2), importing the existing vocabulary bank. No AI.
+- **M1** — Vocabulary review TUI with spaced repetition (SM-2), importing the existing vocabulary bank. No AI. Done.
 - **M2** — Streak, CEFR level, daily goal and daily log in SQLite. Done.
 - **M3** — AI teacher: graded reading and writing correction, errors become cards, one model per capability. Done.
-- **M4** — Guided role-plays (Talk, done), written 4/3/2 fluency (Fluency, done) and quizzes (Quiz, done).
-- **M5** — Voice: speech-to-text and pronunciation practice.
+- **M4** — Guided role-plays (Talk), written 4/3/2 fluency (Fluency) and quizzes (Quiz). Done.
+- **v0.1.0** — M1–M4: every text feature. `teacher --version` prints it; see [CHANGELOG.md](CHANGELOG.md).
+- **v0.2.0** — Voice: shadowing, pronunciation and minimal pairs.
 
 ## Layout
 

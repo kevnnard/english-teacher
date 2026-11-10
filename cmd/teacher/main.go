@@ -10,6 +10,7 @@
 //	teacher [--db path] set goal <minutes>               set the daily goal
 //	teacher [--config path] models                       list the model of each capability
 //	teacher [--config path] set model <capability> <m>   set the model of one capability
+//	teacher --version                                    print the version
 package main
 
 import (
@@ -42,8 +43,12 @@ const usage = `usage:
   teacher [--db path] set goal <minutes>           set the daily goal (default 20)
   teacher models                                   list the AI model of each capability
   teacher set model <capability> <provider/model>  reading, writing, conversation or quiz
+  teacher --version                                print the version
 
   --new n  most never-reviewed cards per session (default 20)`
+
+// Version is the released version of teacher, printed by --version.
+const Version = "0.1.0"
 
 func main() {
 	if err := run(os.Args[1:], os.Stdout); err != nil {
@@ -60,12 +65,18 @@ func run(args []string, stdout io.Writer) error {
 	fs.SetOutput(io.Discard) // errors are returned, not printed twice
 	dbPath := fs.String("db", defaultDBPath(os.Getenv("XDG_DATA_HOME"), home), "path to the SQLite database")
 	maxNew := fs.Int("new", tui.DefaultMaxNew, "most never-reviewed cards per session")
+	showVersion := fs.Bool("version", false, "print the version and exit")
 	configPath := fs.String("config", defaultConfigPath(os.Getenv("XDG_CONFIG_HOME"), home), "path to config.json")
 	if err := fs.Parse(args); err != nil {
 		return fmt.Errorf("%w\n%s", err, usage)
 	}
 	if *maxNew < 0 {
 		return fmt.Errorf("--new must be 0 or more, got %d", *maxNew)
+	}
+
+	if *showVersion {
+		fmt.Fprintln(stdout, "teacher", Version)
+		return nil
 	}
 
 	opts := appOptions{dbPath: *dbPath, configPath: *configPath, start: tui.Home, maxNew: *maxNew}
