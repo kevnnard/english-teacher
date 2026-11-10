@@ -105,6 +105,8 @@ func (a App) screenView(w, h int) string {
 		return a.wordsView()
 	case Stats:
 		return a.statsView()
+	case Learn:
+		return a.learnView(w, h)
 	default:
 		return a.st.main.title.Render(a.screen.String()) + a.st.main.label.Render(" · Coming in M3")
 	}
@@ -201,6 +203,8 @@ func (a App) hints() []string {
 		return []string{"enter start", "tab screens", ": palette", "? help", "q quit"}
 	case Review:
 		return a.reviewHints()
+	case Learn:
+		return a.learnHints()
 	case Words:
 		if a.words.filtering {
 			return []string{"type to filter", "enter keep", "esc clear"}

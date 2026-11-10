@@ -228,3 +228,38 @@ func TestReimportLevelWithoutStartClearsTheStart(t *testing.T) {
 		t.Errorf("output = %q", out.String())
 	}
 }
+
+func TestAppConfigWiresTheTeacherAndAdd(t *testing.T) {
+	db := filepath.Join(t.TempDir(), "teacher.db")
+	st := openDB(t, db)
+	ctx := context.Background()
+	cfgPath := filepath.Join(t.TempDir(), "config.json")
+
+	cfg, err := appConfig(ctx, st, appOptions{dbPath: db, configPath: cfgPath, maxNew: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Teacher == nil {
+		t.Error("the app must get a teacher")
+	}
+	n, err := cfg.Add([]domain.Card{domain.NewCard("teacher")})
+	if err != nil || n != 1 {
+		t.Fatalf("Add = %d, %v", n, err)
+	}
+	cards, _ := st.ListCards(ctx, domain.Recognition)
+	if len(cards) != 1 || cards[0].Word != "teacher" {
+		t.Errorf("cards = %+v", cards)
+	}
+}
+
+func TestAppConfigReportsABrokenConfig(t *testing.T) {
+	db := filepath.Join(t.TempDir(), "teacher.db")
+	cfgPath := filepath.Join(t.TempDir(), "config.json")
+	os.WriteFile(cfgPath, []byte("{"), 0o644)
+
+	_, err := appConfig(context.Background(), openDB(t, db), appOptions{dbPath: db, configPath: cfgPath})
+
+	if err == nil || !strings.Contains(err.Error(), cfgPath) {
+		t.Errorf("err = %v", err)
+	}
+}

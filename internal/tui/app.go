@@ -51,6 +51,9 @@ type Config struct {
 	Profile domain.Profile // the zero profile means a new A1 learner
 	Days    []domain.Day   // recorded study days, for the streak and the week
 	Record  RecordFunc     // called after each grade and undo; nil records nothing
+
+	Teacher Teacher // the AI teacher; nil turns Learn and Write off
+	Add     AddFunc // stores cards the teacher made; nil adds nothing
 }
 
 // DefaultMaxNew is the usual cap on new cards in one session.
@@ -67,6 +70,10 @@ type App struct {
 	record    RecordFunc
 	lastStudy time.Time     // when the learner last graded a card
 	studied   time.Duration // study time not yet recorded as a whole minute
+
+	teacher Teacher
+	add     AddFunc
+	learn   learnState
 
 	screen        Screen
 	width, height int // terminal size; zero until the first WindowSizeMsg
@@ -99,6 +106,8 @@ func NewApp(cfg Config) App {
 		profile:   profile,
 		days:      slices.Clone(cfg.Days),
 		record:    cfg.Record,
+		teacher:   cfg.Teacher,
+		add:       cfg.Add,
 		lastStudy: cfg.Now(),
 		screen:    cfg.Start,
 		st:        newStyles(true), // until the terminal reports its background
@@ -127,6 +136,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.st = newStyles(msg.IsDark())
 	case tea.KeyPressMsg:
 		return a.handleKey(msg)
+	case readingMsg:
+		return a.gotReading(msg), nil
 	}
 	return a, nil
 }
@@ -197,6 +208,8 @@ func (a App) updateScreen(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return a.updateReview(msg)
 	case Words:
 		a.words = a.words.update(msg, len(a.filteredWords()), a.wordRows())
+	case Learn:
+		return a.updateLearn(msg)
 	}
 	return a, nil
 }

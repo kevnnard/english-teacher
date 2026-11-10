@@ -29,6 +29,7 @@ import (
 	"github.com/kevnnard/english-teacher/internal/domain"
 	"github.com/kevnnard/english-teacher/internal/importer"
 	"github.com/kevnnard/english-teacher/internal/store"
+	"github.com/kevnnard/english-teacher/internal/teacher"
 	"github.com/kevnnard/english-teacher/internal/tui"
 )
 
@@ -345,6 +346,10 @@ func appConfig(ctx context.Context, st *store.Store, opts appOptions) (tui.Confi
 	if err != nil {
 		return tui.Config{}, err
 	}
+	conf, err := loadConfig(opts.configPath)
+	if err != nil {
+		return tui.Config{}, err
+	}
 	return tui.Config{
 		Cards:   cards,
 		Save:    func(c domain.Card) error { return st.SaveCard(ctx, c) },
@@ -354,6 +359,8 @@ func appConfig(ctx context.Context, st *store.Store, opts appOptions) (tui.Confi
 		Profile: profile,
 		Days:    days,
 		Record:  func(d domain.Day) error { return st.RecordStudy(ctx, d) },
+		Teacher: teacher.New(conf.models()),
+		Add:     func(c []domain.Card) (int, error) { return st.AddCards(ctx, c) },
 	}, nil
 }
 

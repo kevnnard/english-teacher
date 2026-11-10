@@ -274,7 +274,7 @@ func TestHelpOverlayToggles(t *testing.T) {
 }
 
 func TestPlaceholderScreens(t *testing.T) {
-	for _, s := range []Screen{Learn, Write} {
+	for _, s := range []Screen{Write} {
 		a := newApp(t, deck(), &recorder{}, s, 80, 24)
 
 		mustContain(t, screen(a), "Coming in M3")
