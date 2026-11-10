@@ -202,7 +202,7 @@ func TestMajorsAndMinors(t *testing.T) {
 	}{
 		{"marked", []Fix{fix("a", false), fix("b", true), fix("c", false), fix("d", true)}, "b,d", "a,c"},
 		{"at most 3", []Fix{fix("a", true), fix("b", true), fix("c", true), fix("d", true)}, "a,b,c", "d"},
-		{"none marked takes the first 3", []Fix{fix("a", false), fix("b", false), fix("c", false), fix("d", false)}, "a,b,c", "d"},
+		{"none marked means no majors", []Fix{fix("a", false), fix("b", false)}, "", "a,b"},
 		{"no fixes", nil, "", ""},
 	}
 	for _, tt := range tests {
@@ -309,5 +309,27 @@ func TestReadingKeepsAtMostMaxNewWordsNew(t *testing.T) {
 	}
 	if news != MaxNewWords || r.Glossary[3].New {
 		t.Errorf("%d new (d new: %v), want the first %d only", news, r.Glossary[3].New, MaxNewWords)
+	}
+}
+
+func TestWritingTaskFillsPhrasesFromRecentWords(t *testing.T) {
+	tests := []struct {
+		name, reply string
+		recent      []string
+		want        string
+	}{
+		{"none from the model", `{"task":"t","hint":"h","phrases":[]}`, []string{"brother", "I'm from", "dog"}, "brother|I'm from"},
+		{"one from the model", `{"task":"t","hint":"h","phrases":["My name is"]}`, []string{"my name is", "dog"}, "My name is|dog"},
+		{"enough already", `{"task":"t","hint":"h","phrases":["a","b","c"]}`, []string{"dog"}, "a|b|c"},
+		{"empty deck", `{"task":"t","hint":"h"}`, nil, ""},
+	}
+	for _, tt := range tests {
+		task, err := New(models(&fakeModel{reply: tt.reply})).WritingTask(context.Background(), domain.A1, tt.recent, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := strings.Join(task.Phrases, "|"); got != tt.want {
+			t.Errorf("%s: phrases = %q, want %q", tt.name, got, tt.want)
+		}
 	}
 }

@@ -176,9 +176,12 @@ func (a App) feedbackView(width int) string {
 		b.WriteString(r.label.Render("Fixes that were not exactly the teacher's count as not fixed.") + "\n")
 	}
 	b.WriteString("\n")
-	if len(s.majors) == 0 {
+	switch {
+	case len(s.majors) == 0 && len(s.correction.Fixes) == 0:
 		b.WriteString(r.success.Render("✓ ") + r.secondary.Render("No errors. Nice work!"))
 		return b.String()
+	case len(s.majors) == 0:
+		b.WriteString(r.success.Render("✓ ") + r.secondary.Render("No major errors, only small details.") + "\n")
 	}
 
 	for _, m := range s.majors {

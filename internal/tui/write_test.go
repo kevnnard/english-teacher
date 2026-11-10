@@ -499,3 +499,29 @@ func TestOrdinal(t *testing.T) {
 		}
 	}
 }
+
+func TestWriteMinorOnlyTextHasNoExercisesCardsOrLog(t *testing.T) {
+	x := composing(t)
+	x.ft.correction = teacher.Correction{
+		Corrected: "Hello, I am Ana.",
+		Fixes:     []teacher.Fix{{Wrong: "hello", Right: "Hello", Kind: "spelling"}},
+	}
+	a := typeText(t, x.App, "hello, I am Ana.")
+	a, cmd := press(t, a, "ctrl+d")
+	a = run(t, a, cmd)
+
+	page := pageText(a)
+	mustContain(t, page, "No major errors")
+	mustContain(t, page, "+1 minor details")
+	if strings.Contains(page, "No errors. Nice work!") {
+		t.Error("a text with minor slips must not say it has no errors")
+	}
+	a, _ = press(t, a, "d")
+	mustContain(t, pageText(a), "hello → Hello")
+	if len(x.ad.added) != 0 || len(x.mk.logged) != 0 {
+		t.Errorf("added %+v, logged %+v; minor slips are not cards or mistakes", x.ad.added, x.mk.logged)
+	}
+	if len(x.log.deltas) != 1 {
+		t.Errorf("deltas = %+v; the writing still counts once", x.log.deltas)
+	}
+}

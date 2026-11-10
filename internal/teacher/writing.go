@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/kevnnard/english-teacher/internal/domain"
@@ -75,17 +76,13 @@ func (c Correction) Grade() string {
 	return "F"
 }
 
-// majorIndexes are the positions in Fixes of the major fixes: the first
-// MaxMajors marked major, or the first MaxMajors fixes when none is marked.
+// majorIndexes are the positions in Fixes of the first MaxMajors fixes the
+// model marked major. Unmarked fixes are never promoted: a text with only
+// minor slips has no major errors to work on.
 func (c Correction) majorIndexes() map[int]bool {
 	marked := map[int]bool{}
 	for i, f := range c.Fixes {
 		if f.Major && len(marked) < MaxMajors {
-			marked[i] = true
-		}
-	}
-	if len(marked) == 0 {
-		for i := range min(len(c.Fixes), MaxMajors) {
 			marked[i] = true
 		}
 	}
@@ -172,8 +169,27 @@ func (t *Teacher) WritingTask(ctx context.Context, level domain.Level, recent, f
 			phrases = append(phrases, p)
 		}
 	}
-	out.Phrases = phrases
+	out.Phrases = fillPhrases(phrases, recent)
 	return out, nil
+}
+
+// MinPhrases is the fewest "useful phrases" a task shows when the learner
+// has words to draw on.
+const MinPhrases = 2
+
+// fillPhrases tops phrases up to MinPhrases with the learner's recent
+// words, skipping any already there, because the model may return fewer.
+func fillPhrases(phrases, recent []string) []string {
+	for _, w := range recent {
+		if len(phrases) >= MinPhrases {
+			break
+		}
+		w = strings.TrimSpace(w)
+		if w != "" && !slices.ContainsFunc(phrases, func(p string) bool { return strings.EqualFold(p, w) }) {
+			phrases = append(phrases, w)
+		}
+	}
+	return phrases
 }
 
 // Correct corrects text, written for task. Fixes are recasts: the correct
