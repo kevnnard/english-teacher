@@ -225,14 +225,20 @@ func (t *Teacher) Correct(ctx context.Context, level domain.Level, task, text st
 		return Correction{}, err
 	}
 	out.Rubric = out.Rubric.clamp()
+	out.Fixes = cleanFixes(out.Fixes)
+	return out, nil
+}
+
+// cleanFixes drops fixes that are empty or change nothing and normalizes
+// the kind of the rest.
+func cleanFixes(in []Fix) []Fix {
 	var fixes []Fix
-	for _, f := range out.Fixes {
+	for _, f := range in {
 		wrong, right := strings.TrimSpace(f.Wrong), strings.TrimSpace(f.Right)
 		if wrong != "" && right != "" && !strings.EqualFold(wrong, right) {
 			f.Kind = NormalizeKind(f.Kind)
 			fixes = append(fixes, f)
 		}
 	}
-	out.Fixes = fixes
-	return out, nil
+	return fixes
 }
