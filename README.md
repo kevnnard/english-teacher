@@ -38,7 +38,7 @@ the command to pick another file, e.g. `./teacher --db /tmp/test.db review`.
 
 Screens: **Home** (one preselected next action), **Review** (cards due today),
 **Learn** (a short reading written for you), **Write** (a writing task you
-correct with the AI), **Words** (every word with its status) and **Stats**. Every screen is a notebook page: the top bar shows the date,
+correct with the AI), **Talk** (a guided role-play with the AI), **Words** (every word with its status) and **Stats**. Every screen is a notebook page: the top bar shows the date,
 the page ("Page 3 of 26" during a review) and the screen tabs; a margin line
 runs down the left (6 columns in from the edge on terminals 100+ columns
 wide, 2 on narrower ones) and the text never gets wider than 76 columns.
@@ -88,6 +88,12 @@ current screen.
 | | `s` | save the error cards again if saving failed |
 | | `n` | a new task from the feedback or the result |
 | | `esc` | back to Home; your work stays |
+| Talk | `↑` `↓` / `j` `k` | choose a situation |
+| | `enter` | start it; while talking, send your line (after a failed answer, the same line again) |
+| | `ctrl+d` | finish the role-play early and get feedback |
+| | `s` | save the error cards again if saving failed |
+| | `n` | a new role-play from the feedback |
+| | `esc` | back to Home; the conversation stays |
 | Words | `/` | filter by word or meaning (`enter` keep · `esc` clear) |
 | | `↑` `↓` / `j` `k` | scroll |
 
@@ -126,9 +132,9 @@ back if you grade it good, and the last wrong answer you typed.
 
 ### The AI teacher
 
-Learn and Write use the AI through `pi`, the engine of Gentle Shell, so they
+Learn, Write and Talk use the AI through `pi`, the engine of Gentle Shell, so they
 need Gentle Shell installed and signed in; the app never reads its
-credentials. Each answer takes about 10 seconds. Without `pi` both screens
+credentials. Each answer takes about 10 seconds. Without `pi` these screens
 say how to turn it on and the rest of the app works as before.
 
 - **Learn** writes a 60–100 word text at your level that reuses the words you
@@ -166,6 +172,24 @@ say how to turn it on and the rest of the app works as before.
   The writing counts as study (`Writing: 32/40`, at most 30 minutes) as soon
   as the correction arrives. `n` starts a new task from the feedback or the
   result; `esc` goes Home and keeps your place.
+- **Talk** is a guided role-play: *Introduce yourself*, *Order a coffee*,
+  *Ask for directions* or *Small talk at work*. The tutor plays the other
+  person (a classmate, a barista, a local, a coworker) and opens the
+  conversation; you see the goal and sentence frames that fade with your
+  level: A1 gets whole frames (`Can I have a ___, please?`), A2 only their
+  first words (`Can I…`), B1 and above only the goal. Every key is a letter
+  while you type; `enter` sends your line. The tutor answers in character,
+  short and at your level, and when your line has an error it says it
+  correctly inside its reply without stopping you; the correct version shows
+  quietly under your line (`↳ Can I have a big coffee, please?`). If an
+  answer fails, your line comes back and `enter` sends it again. The
+  role-play ends when you meet the goal, after 8 of your lines or with
+  `ctrl+d`. Then the teacher gives 2–3 short points in Spanish on what went
+  well and what to work on, and lists your errors: the major ones become
+  cards (your line is the example), and are logged by kind like Write's.
+  The role-play counts as study (`Talk: Order a coffee`, at most 20 minutes)
+  when the feedback arrives; leaving before that records nothing. `n` picks
+  a new role-play; `esc` goes Home and keeps the conversation.
 
 Models live in `$XDG_CONFIG_HOME/english-teacher/config.json`
 (`~/.config/english-teacher/config.json`); `--config path` picks another.
@@ -178,7 +202,7 @@ the `pi` binary.
 - **M1** — Vocabulary review TUI with spaced repetition (SM-2), importing the existing vocabulary bank. No AI.
 - **M2** — Streak, CEFR level, daily goal and daily log in SQLite. Done.
 - **M3** — AI teacher: graded reading and writing correction, errors become cards, one model per capability. Done.
-- **M4** — Free conversation practice and quizzes.
+- **M4** — Guided role-plays (Talk, done), written 4/3/2 fluency and quizzes.
 - **M5** — Voice: speech-to-text and pronunciation practice.
 
 ## Layout
