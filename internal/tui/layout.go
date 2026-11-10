@@ -113,6 +113,8 @@ func (a App) screenView(w, h int) string {
 		return a.talkView(w, h)
 	case Fluency:
 		return a.fluencyView(w, h)
+	case Quiz:
+		return a.quizView(w)
 	default:
 		return a.st.main.title.Render(a.screen.String())
 	}
@@ -125,7 +127,8 @@ func (a App) errorView() string {
 }
 
 // header is the top bar: the date and what this page is on the left, the
-// tabs on the right. When the tabs do not fit, only the active one stays.
+// tabs on the right. When the tabs do not fit, they move closer together
+// and, if they still do not fit, only the active one stays.
 func (a App) header(w int) string {
 	r := a.st.chrome
 	left := r.base.Render(" ") + r.title.Render(a.now().Format("Monday 2 Jan")) +
@@ -141,8 +144,12 @@ func (a App) header(w int) string {
 	for i, s := range screens {
 		tabs[i] = tab(s)
 	}
+	fits := func(right string) bool { return ansi.StringWidth(left)+ansi.StringWidth(right)+2 <= w }
 	right := strings.Join(tabs, r.base.Render("  ")) + r.base.Render(" ")
-	if ansi.StringWidth(left)+ansi.StringWidth(right)+2 > w {
+	if !fits(right) {
+		right = strings.Join(tabs, r.base.Render(" ")) + r.base.Render(" ")
+	}
+	if !fits(right) {
 		right = tab(a.screen) + r.base.Render(" ")
 	}
 
@@ -217,6 +224,8 @@ func (a App) hints() []string {
 		return a.talkHints()
 	case Fluency:
 		return a.fluencyHints()
+	case Quiz:
+		return a.quizHints()
 	case Words:
 		if a.words.filtering {
 			return []string{"type to filter", "enter keep", "esc clear"}

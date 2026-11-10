@@ -36,6 +36,16 @@ type fakeTeacher struct {
 	feedback      teacher.Feedback // the answer of RolePlayFeedback
 	feedbackErr   error            // the error of RolePlayFeedback
 	feedbackCalls [][]teacher.Line // the transcript of every RolePlayFeedback call
+
+	grammar      teacher.GrammarQuiz // the answer of GrammarQuiz
+	grammarErr   error               // the error of GrammarQuiz
+	grammarCalls [][]string          // the focus of every GrammarQuiz call
+}
+
+func (f *fakeTeacher) GrammarQuiz(_ context.Context, l domain.Level, focus []string) (teacher.GrammarQuiz, error) {
+	f.level = l
+	f.grammarCalls = append(f.grammarCalls, slices.Clone(focus))
+	return f.grammar, f.grammarErr
 }
 
 func (f *fakeTeacher) RolePlay(_ context.Context, l domain.Level, s teacher.Scenario, lines []teacher.Line) (teacher.Turn, error) {

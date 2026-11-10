@@ -71,6 +71,15 @@ var helpSections = []helpSection{
 		{"n", "a new topic between rounds or from the result"},
 		{"esc", "back to Home; the clock keeps running"},
 	}},
+	{"Quiz", [][2]string{
+		{"↑ ↓ / j k", "choose a vocabulary or a grammar quiz"},
+		{"enter", "start it; after the feedback, the next question"},
+		{"1–4", "choose an option"},
+		{"enter", "check a typed answer (empty: I don't know)"},
+		{"enter", "after a failed grammar quiz: try again"},
+		{"n", "a new quiz from the result"},
+		{"esc", "back to Home; the quiz stays"},
+	}},
 	{"Words", [][2]string{
 		{"/", "filter by word or meaning (enter keep · esc clear)"},
 		{"↑ ↓ / j k", "scroll"},

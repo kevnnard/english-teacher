@@ -32,15 +32,16 @@ const (
 	Write
 	Talk
 	Fluency
+	Quiz
 	Words
 	Stats
 )
 
 // screens is the order of the tabs and of tab / shift+tab.
-var screens = []Screen{Home, Review, Learn, Write, Talk, Fluency, Words, Stats}
+var screens = []Screen{Home, Review, Learn, Write, Talk, Fluency, Quiz, Words, Stats}
 
 func (s Screen) String() string {
-	return [...]string{"Home", "Review", "Learn", "Write", "Talk", "Fluency", "Words", "Stats"}[s]
+	return [...]string{"Home", "Review", "Learn", "Write", "Talk", "Fluency", "Quiz", "Words", "Stats"}[s]
 }
 
 // Config is what the app needs from the outside world.
@@ -55,7 +56,7 @@ type Config struct {
 	Days    []domain.Day   // recorded study days, for the streak and the week
 	Record  RecordFunc     // called after each grade and undo; nil records nothing
 
-	Teacher Teacher // the AI teacher; nil turns Learn, Write and Talk off
+	Teacher Teacher // the AI teacher; nil turns Learn, Write, Talk and the grammar quiz off
 	Add     AddFunc // stores cards the teacher made; nil adds nothing
 
 	MistakeCounts  map[string]int     // logged major writing errors per kind
@@ -87,6 +88,7 @@ type App struct {
 	write          writeState
 	talk           talkState
 	fluency        fluencyState
+	quiz           quizState
 	mistakeCounts  map[string]int // major writing errors per kind, as stored
 	recordMistakes RecordMistakesFunc
 
@@ -168,6 +170,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.gotTalkFeedback(msg), nil
 	case fluencyTickMsg:
 		return a.gotFluencyTick(msg)
+	case quizGrammarMsg:
+		return a.gotGrammar(msg), nil
 	}
 	return a, nil
 }
@@ -230,6 +234,8 @@ func (a App) typing() bool {
 		return a.teacher != nil && a.talk.phase == talkChatting
 	case Fluency:
 		return a.fluency.typing()
+	case Quiz:
+		return a.quiz.typing()
 	}
 	return false
 }
@@ -252,6 +258,8 @@ func (a App) updateScreen(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return a.updateTalk(msg)
 	case Fluency:
 		return a.updateFluency(msg)
+	case Quiz:
+		return a.updateQuiz(msg)
 	}
 	return a, nil
 }
