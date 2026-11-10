@@ -22,7 +22,11 @@ type fakeTeacher struct {
 	err        error
 	known      []string // the known words of the last reading request
 	level      domain.Level
-	text       string // the last text sent to Correct
+	text       string              // the last text sent to Correct
+	focus      []string            // the focus of the last writing task request
+	verdicts   []bool              // the answer of Judge
+	judgeErr   error               // the error of Judge
+	judgeCalls [][]teacher.Attempt // every Judge call
 }
 
 func (f *fakeTeacher) Reading(_ context.Context, l domain.Level, known []string) (teacher.Reading, error) {
@@ -30,9 +34,14 @@ func (f *fakeTeacher) Reading(_ context.Context, l domain.Level, known []string)
 	return f.reading, f.err
 }
 
-func (f *fakeTeacher) WritingTask(_ context.Context, l domain.Level, _ []string) (teacher.WritingTask, error) {
-	f.level = l
+func (f *fakeTeacher) WritingTask(_ context.Context, l domain.Level, _, focus []string) (teacher.WritingTask, error) {
+	f.level, f.focus = l, focus
 	return f.task, f.err
+}
+
+func (f *fakeTeacher) Judge(_ context.Context, _ domain.Level, attempts []teacher.Attempt) ([]bool, error) {
+	f.judgeCalls = append(f.judgeCalls, attempts)
+	return f.verdicts, f.judgeErr
 }
 
 func (f *fakeTeacher) Correct(_ context.Context, l domain.Level, _, text string) (teacher.Correction, error) {

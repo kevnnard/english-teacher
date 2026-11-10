@@ -13,7 +13,7 @@ import (
 func sampleCorrection() teacher.Correction {
 	return teacher.Correction{
 		Corrected: "I am 30 years old. I am from Argentina.",
-		Score:     6,
+		Rubric:    teacher.Rubric{Grammar: 1, Vocabulary: 2, Coherence: 1, Task: 2},
 		Comment:   "¡Muy bien por presentarte!",
 		Fixes: []teacher.Fix{{
 			Wrong: "I has 30 years", Right: "I am 30 years old", Meaning: "tengo 30 años",
@@ -93,7 +93,7 @@ func TestWriteCorrectionShowsRecastsAndAddsCards(t *testing.T) {
 		t.Errorf("sent %q", x.ft.text)
 	}
 	page := pageText(a)
-	for _, want := range []string{"6/10", "¡Muy bien por presentarte!", "I am 30 years old. I am from Argentina.",
+	for _, want := range []string{"6/40", "¡Muy bien por presentarte!", "I am 30 years old. I am from Argentina.",
 		"I has 30 years", "I am 30 years old", "La edad va con to be.", "Added 1 card to practice"} {
 		mustContain(t, page, want)
 	}
@@ -105,7 +105,7 @@ func TestWriteCorrectionShowsRecastsAndAddsCards(t *testing.T) {
 		t.Errorf("card = %+v", c)
 	}
 	d := x.log.deltas[0]
-	if d.Minutes != 6 || len(d.Activities) != 1 || d.Activities[0] != "Writing: 6/10" {
+	if d.Minutes != 6 || len(d.Activities) != 1 || d.Activities[0] != "Writing: 6/40" {
 		t.Errorf("delta = %+v", d)
 	}
 	mustContain(t, statusBar(a), "n new task")
@@ -113,7 +113,7 @@ func TestWriteCorrectionShowsRecastsAndAddsCards(t *testing.T) {
 
 func TestWriteNoErrorsAddsNoCards(t *testing.T) {
 	x := composing(t)
-	x.ft.correction = teacher.Correction{Corrected: "I am from Argentina.", Score: 10, Comment: "¡Perfecto!"}
+	x.ft.correction = teacher.Correction{Corrected: "I am from Argentina.", Rubric: teacher.Rubric{Grammar: 10, Vocabulary: 10, Coherence: 10, Task: 10}, Comment: "¡Perfecto!"}
 	a := typeText(t, x.App, "I am from Argentina.")
 	a, cmd := press(t, a, "ctrl+d")
 	a = run(t, a, cmd)
@@ -139,7 +139,7 @@ func TestWriteCorrectionErrorKeepsTheDraft(t *testing.T) {
 	x.ft.err = nil
 	a, cmd = press(t, a, "ctrl+d")
 	a = run(t, a, cmd)
-	mustContain(t, pageText(a), "6/10")
+	mustContain(t, pageText(a), "6/40")
 	if len(x.log.deltas) != 1 {
 		t.Errorf("deltas = %+v", x.log.deltas)
 	}

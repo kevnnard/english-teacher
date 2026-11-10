@@ -28,7 +28,19 @@ func TestLiveCorrection(t *testing.T) {
 		t.Errorf("the age error was not corrected: %+v", c)
 	}
 
-	task, err := tc.WritingTask(context.Background(), domain.A1, []string{"brother", "I'm from"})
+	t.Logf("rubric %+v: %d/%d %s; majors %d", c.Rubric, c.Total(), teacher.MaxTotal, c.Grade(), len(c.Majors()))
+
+	fixed, err := tc.Judge(context.Background(), domain.A1, []teacher.Attempt{{
+		Sentence: "I has 30 years.", Wrong: "I has 30 years", Right: "I am 30 years old", Attempt: "I'm 30 years old",
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fixed) != 1 || !fixed[0] {
+		t.Errorf("the judge rejected a valid alternative: %v", fixed)
+	}
+
+	task, err := tc.WritingTask(context.Background(), domain.A1, []string{"brother", "I'm from"}, []string{"be"})
 	if err != nil {
 		t.Fatal(err)
 	}

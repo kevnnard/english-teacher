@@ -65,7 +65,7 @@ func (a App) askTask() (App, tea.Cmd) {
 	a.write = writeState{phase: writeTaskWait, req: a.write.req + 1}
 	req, tc, level, recent := a.write.req, a.teacher, a.profile.Level, a.recentWords()
 	return a, func() tea.Msg {
-		t, err := tc.WritingTask(context.Background(), level, recent)
+		t, err := tc.WritingTask(context.Background(), level, recent, nil)
 		return taskMsg{req: req, task: t, err: err}
 	}
 }
@@ -118,7 +118,7 @@ func (a App) gotCorrection(msg correctionMsg) App {
 	minutes := min(int(a.now().Sub(w.startedAt)/time.Minute), maxWritingMinutes)
 	a.addToToday(domain.Day{
 		Minutes:    max(minutes, 0),
-		Activities: []string{fmt.Sprintf("Writing: %d/%d", msg.correction.Score, teacher.MaxScore)},
+		Activities: []string{fmt.Sprintf("Writing: %d/%d", msg.correction.Total(), teacher.MaxTotal)},
 	})
 	return a
 }
@@ -252,7 +252,7 @@ func (a App) correctionView(width int) string {
 	s := a.write
 	c := s.correction
 	var b strings.Builder
-	b.WriteString(r.value.Render(fmt.Sprintf("%d/%d", c.Score, teacher.MaxScore)))
+	b.WriteString(r.value.Render(fmt.Sprintf("%d/%d", c.Total(), teacher.MaxTotal)))
 	if c.Comment != "" {
 		b.WriteString(r.secondary.Render("  " + c.Comment))
 	}
