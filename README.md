@@ -24,6 +24,10 @@ go build ./cmd/teacher
 
 # At most 5 never-reviewed words in this session (default 20).
 ./teacher --new 5 review
+
+# The AI model of each capability, and how to change one.
+./teacher models
+./teacher set model writing claude-bridge/claude-opus-5-5
 ```
 
 The database lives at `$XDG_DATA_HOME/english-teacher/teacher.db`
@@ -33,8 +37,8 @@ the command to pick another file, e.g. `./teacher --db /tmp/test.db review`.
 ## The app
 
 Screens: **Home** (one preselected next action), **Review** (cards due today),
-**Words** (every word with its status), **Stats**, and **Learn** / **Write**
-(coming in M3). Every screen is a notebook page: the top bar shows the date,
+**Learn** (a short reading written for you), **Write** (a writing task the AI
+corrects), **Words** (every word with its status) and **Stats**. Every screen is a notebook page: the top bar shows the date,
 the page ("Page 3 of 26" during a review) and the screen tabs; a margin line
 runs down the left (6 columns in from the edge on terminals 100+ columns
 wide, 2 on narrower ones) and the text never gets wider than 76 columns.
@@ -54,7 +58,8 @@ Word status is always a glyph plus a word: `● due`, `◐ learning`, `✓ known
 
 ### Keys
 
-The `?` overlay shows the same list.
+The `?` overlay shows the keys that work everywhere plus those of the
+current screen.
 
 | Where | Key | Action |
 |---|---|---|
@@ -71,6 +76,15 @@ The `?` overlay shows the same list.
 | | `enter` | check a typed answer (Spanish → English) |
 | | `u` / `ctrl+z` | undo the last grade (`ctrl+z` also works while typing an answer) |
 | | `r` | review the session's mistakes again (dates don't move) |
+| Learn | `enter` | get a short text written for you |
+| | `↑` `↓` / `j` `k` | move through the glossary |
+| | `space` | mark or unmark a word to study |
+| | `a` | done: add the marked words as cards |
+| | `n` | a new text |
+| Write | `enter` | get a task; while writing, a new line |
+| | `ctrl+d` | send your text to the teacher |
+| | `esc` | back to Home; the draft stays |
+| | `n` | a new task after the correction |
 | Words | `/` | filter by word or meaning (`enter` keep · `esc` clear) |
 | | `↑` `↓` / `j` `k` | scroll |
 
@@ -107,11 +121,36 @@ mistakes for practice without moving any review date. The margin notes at the
 foot of each card show your history with it: times seen, ✓/✗, when it comes
 back if you grade it good, and the last wrong answer you typed.
 
+### The AI teacher
+
+Learn and Write use the AI through `pi`, the engine of Gentle Shell, so they
+need Gentle Shell installed and signed in; the app never reads its
+credentials. Each answer takes about 10 seconds. Without `pi` both screens
+say how to turn it on and the rest of the app works as before.
+
+- **Learn** writes a 60–100 word text at your level that reuses the words you
+  know and adds at most 3 new words or chunks (`new` in the glossary), so you
+  know about 98% of the text and learn the rest from context. New words come
+  marked; `space` marks any other, `a` adds them as cards and records the
+  reading as study (at most 15 minutes).
+- **Write** gives a short task with a hint in Spanish. You write, `ctrl+d`
+  sends it, and the teacher returns a score out of 10, the corrected text and
+  each error as a recast (`✗ I has 30 years → ✓ I am 30 years old`) with a
+  one-line explanation in Spanish. Every error becomes a card for the correct
+  chunk, with your sentence as the example and your version as the last wrong
+  answer. The writing counts as study (at most 30 minutes).
+
+Models live in `$XDG_CONFIG_HOME/english-teacher/config.json`
+(`~/.config/english-teacher/config.json`); `--config path` picks another.
+The defaults are Sonnet for reading, writing and conversation and Haiku for
+quizzes; any model in `pi --list-models` works. A `"pi"` key sets the path of
+the `pi` binary.
+
 ## Roadmap
 
 - **M1** — Vocabulary review TUI with spaced repetition (SM-2), importing the existing vocabulary bank. No AI.
 - **M2** — Streak, CEFR level, daily goal and daily log in SQLite. Done.
-- **M3** — LLM teacher: lesson of the day and homework review, with one model per capability (text, speech, resource search).
+- **M3** — AI teacher: graded reading and writing correction, errors become cards, one model per capability. Done.
 - **M4** — Free conversation practice and quizzes.
 - **M5** — Voice: speech-to-text and pronunciation practice.
 
@@ -125,7 +164,7 @@ internal/check/     typed-answer check and letter diff (pure)
 internal/progress/  streak, week and daily totals (pure, no I/O)
 internal/importer/  imports english-master markdown data
 internal/store/     SQLite persistence
-internal/llm/       model clients (M3)
-internal/teacher/   use cases (M3)
+internal/llm/pi/    runs the AI through the pi CLI
+internal/teacher/   AI teacher use cases: prompts and answers
 internal/tui/       Bubbletea screens
 ```
