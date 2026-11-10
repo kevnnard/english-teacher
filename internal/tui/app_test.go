@@ -273,14 +273,6 @@ func TestHelpOverlayToggles(t *testing.T) {
 	mustNotContain(t, screen(a), "command palette")
 }
 
-func TestPlaceholderScreens(t *testing.T) {
-	for _, s := range []Screen{Write} {
-		a := newApp(t, deck(), &recorder{}, s, 80, 24)
-
-		mustContain(t, screen(a), "Coming in M3")
-	}
-}
-
 func TestStartScreen(t *testing.T) {
 	a := newApp(t, deck(), &recorder{}, Review, 80, 24)
 

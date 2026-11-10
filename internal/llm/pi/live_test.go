@@ -28,6 +28,12 @@ func TestLiveCorrection(t *testing.T) {
 		t.Errorf("the age error was not corrected: %+v", c)
 	}
 
+	task, err := tc.WritingTask(context.Background(), domain.A1, []string{"brother", "I'm from"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("task: %+v", task)
+
 	r, err := tc.Reading(context.Background(), domain.A1, []string{"hello", "name", "Argentina", "teacher"})
 	if err != nil {
 		t.Fatal(err)

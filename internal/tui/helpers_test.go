@@ -30,6 +30,7 @@ var specialKeys = map[string]tea.KeyPressMsg{
 	"down":      {Code: tea.KeyDown},
 	"ctrl+c":    {Code: 'c', Mod: tea.ModCtrl},
 	"ctrl+z":    {Code: 'z', Mod: tea.ModCtrl},
+	"ctrl+d":    {Code: 'd', Mod: tea.ModCtrl},
 }
 
 // key builds a synthetic key press, like the terminal would send.

@@ -10,12 +10,16 @@ import (
 	"github.com/kevnnard/english-teacher/internal/srs"
 )
 
-// helpSections is the text of the `?` overlay. The README keys table mirrors
-// it; change both together.
-var helpSections = []struct {
+// helpSection is one titled group of keys in the `?` overlay.
+type helpSection struct {
 	title string
 	keys  [][2]string
-}{
+}
+
+// helpSections is the text of the `?` overlay: the first section applies
+// everywhere and each other one to the screen of the same name. The README
+// keys table mirrors it; change both together.
+var helpSections = []helpSection{
 	{"Everywhere", [][2]string{
 		{"tab / shift+tab", "next / previous screen"},
 		{":", "command palette: type a screen name, enter to go"},
@@ -35,6 +39,19 @@ var helpSections = []struct {
 		{"u", "undo the last grade (ctrl+z while typing an answer)"},
 		{"r", "review the session's mistakes again (dates don't move)"},
 	}},
+	{"Learn", [][2]string{
+		{"enter", "get a short text written for you"},
+		{"↑ ↓ / j k", "move through the glossary"},
+		{"space", "mark or unmark the word to study"},
+		{"a", "done: add the marked words as cards"},
+		{"n", "a new text"},
+	}},
+	{"Write", [][2]string{
+		{"enter", "get a task; while writing, a new line"},
+		{"ctrl+d", "send your text to the teacher"},
+		{"esc", "back to Home; your draft stays"},
+		{"n", "a new task after the correction"},
+	}},
 	{"Words", [][2]string{
 		{"/", "filter by word or meaning (enter keep · esc clear)"},
 		{"↑ ↓ / j k", "scroll"},
@@ -45,7 +62,14 @@ func (a App) helpView() string {
 	r := a.st.main
 	var b strings.Builder
 	b.WriteString(r.title.Render("Keys") + "\n")
-	for _, sec := range helpSections {
+	// Only the screen's own keys fit next to the general ones on 24 rows.
+	sections := []helpSection{helpSections[0]}
+	for _, sec := range helpSections[1:] {
+		if sec.title == a.screen.String() {
+			sections = append(sections, sec)
+		}
+	}
+	for _, sec := range sections {
 		b.WriteString("\n" + r.label.Render(sec.title) + "\n")
 		for _, k := range sec.keys {
 			fmt.Fprintf(&b, "  %s %s\n", r.accent.Render(fmt.Sprintf("%-16s", k[0])), k[1])

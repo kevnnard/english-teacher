@@ -74,6 +74,7 @@ type App struct {
 	teacher Teacher
 	add     AddFunc
 	learn   learnState
+	write   writeState
 
 	screen        Screen
 	width, height int // terminal size; zero until the first WindowSizeMsg
@@ -138,6 +139,10 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.handleKey(msg)
 	case readingMsg:
 		return a.gotReading(msg), nil
+	case taskMsg:
+		return a.gotTask(msg), nil
+	case correctionMsg:
+		return a.gotCorrection(msg), nil
 	}
 	return a, nil
 }
@@ -194,6 +199,8 @@ func (a App) typing() bool {
 	case Review:
 		s := a.current()
 		return !s.done() && s.phase == typing
+	case Write:
+		return a.teacher != nil && a.write.phase == writeComposing
 	}
 	return false
 }
@@ -210,6 +217,8 @@ func (a App) updateScreen(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		a.words = a.words.update(msg, len(a.filteredWords()), a.wordRows())
 	case Learn:
 		return a.updateLearn(msg)
+	case Write:
+		return a.updateWrite(msg)
 	}
 	return a, nil
 }
