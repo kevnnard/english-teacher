@@ -39,7 +39,8 @@ the command to pick another file, e.g. `./teacher --db /tmp/test.db review`.
 Screens: **Home** (one preselected next action), **Review** (cards due today),
 **Learn** (a short reading written for you), **Write** (a writing task you
 correct with the AI), **Talk** (a guided role-play with the AI), **Fluency** (the same story
-three times, faster each time), **Words** (every word with its status) and **Stats**. Every screen is a notebook page: the top bar shows the date,
+three times, faster each time), **Quiz** (vocabulary from your cards or
+grammar from the AI), **Words** (every word with its status) and **Stats**. Every screen is a notebook page: the top bar shows the date,
 the page ("Page 3 of 26" during a review) and the screen tabs; a margin line
 runs down the left (6 columns in from the edge on terminals 100+ columns
 wide, 2 on narrower ones) and the text never gets wider than 76 columns.
@@ -100,6 +101,13 @@ current screen.
 | | `ctrl+d` | end the round early; the time stops |
 | | `n` | a new topic between rounds or from the result |
 | | `esc` | back to Home; the clock keeps running |
+| Quiz | `↑` `↓` / `j` `k` | choose a vocabulary or a grammar quiz |
+| | `enter` | start it; after the feedback, the next question |
+| | `1`–`4` | choose an option |
+| | `enter` | check a typed answer (empty: I don't know) |
+| | `enter` | after a failed grammar quiz: try again |
+| | `n` | a new quiz from the result |
+| | `esc` | back to Home; the quiz stays |
 | Words | `/` | filter by word or meaning (`enter` keep · `esc` clear) |
 | | `↑` `↓` / `j` `k` | scroll |
 
@@ -138,7 +146,7 @@ back if you grade it good, and the last wrong answer you typed.
 
 ### The AI teacher
 
-Learn, Write and Talk use the AI through `pi`, the engine of Gentle Shell, so they
+Learn, Write, Talk and the grammar quiz use the AI through `pi`, the engine of Gentle Shell, so they
 need Gentle Shell installed and signed in; the app never reads its
 credentials. Each answer takes about 10 seconds. Without `pi` these screens
 say how to turn it on and the rest of the app works as before.
@@ -215,6 +223,35 @@ minutes) when round 3 ends; leaving earlier records nothing. `esc` goes
 Home and the clock keeps running, so a round can end while you are
 elsewhere; `n` picks a new topic between rounds or from the result.
 
+### Quiz
+
+Quiz checks what you remember. It is retrieval practice, not grading: a
+quiz never changes your review dates. Pick one of two:
+
+- **Vocabulary** uses no AI, so it works without `pi`. It asks 10 words of
+  your own deck (each word once, in a new order every time), alternating
+  multiple choice (the Spanish meaning → choose the English word among 4,
+  with other words of your deck as the wrong options; keys `1`–`4`) and
+  typed (the meaning, and the example with the word blanked → type the
+  word, checked like a typed review answer: ✓, ✗ almost with the letter
+  diff, or ✗ with the right answer). With fewer than 4 words every
+  question is typed; with fewer than 10 there is one question per word; an
+  empty deck says so.
+- **Grammar** asks the teacher for 8 multiple-choice items at your level on
+  your current lesson: the two error kinds you repeat most (seen twice or
+  more, as in Write), or else the core grammar of your level (A1: to be,
+  present simple, articles, plurals, possessives). Items with a bad answer
+  or the wrong number of options are dropped; fewer than 3 good ones is an
+  error. If the call fails, the page says why and `enter` tries again.
+
+After each answer you see ✓, or ✗ with the right answer and, for grammar,
+why in Spanish; `enter` moves on, and every key is a letter while you type
+an answer. The result shows your score (`8/10`) and the questions to look at
+again (a grammar item with its why). The quiz counts as study
+(`Quiz: vocabulary 8/10` or `Quiz: grammar 6/8`, at most 10 minutes) when
+you answer the last question; leaving earlier records nothing. `n` starts a
+new quiz; `esc` goes Home and keeps the quiz.
+
 Models live in `$XDG_CONFIG_HOME/english-teacher/config.json`
 (`~/.config/english-teacher/config.json`); `--config path` picks another.
 The defaults are Sonnet for reading, writing and conversation and Haiku for
@@ -226,7 +263,7 @@ the `pi` binary.
 - **M1** — Vocabulary review TUI with spaced repetition (SM-2), importing the existing vocabulary bank. No AI.
 - **M2** — Streak, CEFR level, daily goal and daily log in SQLite. Done.
 - **M3** — AI teacher: graded reading and writing correction, errors become cards, one model per capability. Done.
-- **M4** — Guided role-plays (Talk, done), written 4/3/2 fluency (Fluency, done) and quizzes.
+- **M4** — Guided role-plays (Talk, done), written 4/3/2 fluency (Fluency, done) and quizzes (Quiz, done).
 - **M5** — Voice: speech-to-text and pronunciation practice.
 
 ## Layout
