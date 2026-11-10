@@ -37,8 +37,8 @@ the command to pick another file, e.g. `./teacher --db /tmp/test.db review`.
 ## The app
 
 Screens: **Home** (one preselected next action), **Review** (cards due today),
-**Learn** (a short reading written for you), **Write** (a writing task the AI
-corrects), **Words** (every word with its status) and **Stats**. Every screen is a notebook page: the top bar shows the date,
+**Learn** (a short reading written for you), **Write** (a writing task you
+correct with the AI), **Words** (every word with its status) and **Stats**. Every screen is a notebook page: the top bar shows the date,
 the page ("Page 3 of 26" during a review) and the screen tabs; a margin line
 runs down the left (6 columns in from the edge on terminals 100+ columns
 wide, 2 on narrower ones) and the text never gets wider than 76 columns.
@@ -83,9 +83,11 @@ current screen.
 | | `n` | a new text |
 | Write | `enter` | get a task; while writing, a new line |
 | | `ctrl+d` | send your text to the teacher |
-| | `esc` | back to Home; the draft stays |
-| | `n` | a new task after the correction |
+| | `enter` | fixing or rewriting: submit (empty: I don't know) |
+| | `d` | show / hide the minor details in the feedback |
 | | `s` | save the error cards again if saving failed |
+| | `n` | a new task from the feedback or the result |
+| | `esc` | back to Home; your work stays |
 | Words | `/` | filter by word or meaning (`enter` keep · `esc` clear) |
 | | `↑` `↓` / `j` `k` | scroll |
 
@@ -134,12 +136,36 @@ say how to turn it on and the rest of the app works as before.
   know about 98% of the text and learn the rest from context. New words come
   marked; `space` marks any other, `a` adds them as cards and records the
   reading as study (at most 15 minutes).
-- **Write** gives a short task with a hint in Spanish. You write, `ctrl+d`
-  sends it, and the teacher returns a score out of 10, the corrected text and
-  each error as a recast (`✗ I has 30 years → ✓ I am 30 years old`) with a
-  one-line explanation in Spanish. Every error becomes a card for the correct
-  chunk, with your sentence as the example and your version as the last wrong
-  answer. The writing counts as study (at most 30 minutes).
+- **Write** runs six steps, built on research on written corrective
+  feedback (focused, direct feedback on a few errors, then revision):
+  1. **Plan** — a short task with a hint in Spanish and 2–4 useful phrases,
+     taken from your own cards when they fit. When an error kind keeps coming
+     back (seen twice or more), the task makes you practice the two most
+     repeated ones.
+  2. **Write** — `enter` is a new line, `ctrl+d` sends, `esc` keeps the draft.
+  3. **Fix it yourself** — your text comes back with at most 3 major errors
+     marked (`«I has 30 years»`) and the kind of each, but not the answer.
+     You get one try per error; `enter` with nothing typed means "I don't
+     know". A try equal to the teacher's fix counts right away; the others
+     go to the teacher in one call, which also accepts valid alternatives.
+     If that call fails, those tries count as not fixed and the page says so.
+  4. **Feedback** — each major error shows `✓ fixed by you` or
+     `✗ I has 30 years → I am 30 years old` with a one-line why in Spanish.
+     Minor details are collapsed (`+2 minor details`); `d` shows them. Only
+     the major errors you could not fix become cards (your version is kept as
+     the last wrong answer), and every major error is logged by kind.
+  5. **Rewrite** — for each error you could not fix you see its Spanish
+     meaning and type the English from memory, checked like a typed review
+     answer (✓, ✗ almost with the letter diff, or ✗ with the right answer).
+     No AI call.
+  6. **Result** — Grammar, Vocabulary, Coherence and Task, each out of 10,
+     the total out of 40 with a grade (A ≥ 90%, B ≥ 80%, C ≥ 70%, D ≥ 60%,
+     F below), the cards added and a pattern line when an error kind has been
+     seen before (`Pattern: 3rd time with to be (am/is/are)`).
+
+  The writing counts as study (`Writing: 32/40`, at most 30 minutes) as soon
+  as the correction arrives. `n` starts a new task from the feedback or the
+  result; `esc` goes Home and keeps your place.
 
 Models live in `$XDG_CONFIG_HOME/english-teacher/config.json`
 (`~/.config/english-teacher/config.json`); `--config path` picks another.
