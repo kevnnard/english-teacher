@@ -83,6 +83,16 @@ var migrations = []string{
 		started             TEXT    NOT NULL DEFAULT '',
 		daily_goal_minutes  INTEGER NOT NULL DEFAULT 20
 	);`,
+
+	// 4: the log of major writing errors, one row per error, so the count
+	// of each error kind survives restarts and can aim the next task.
+	`CREATE TABLE mistakes (
+		id     INTEGER PRIMARY KEY AUTOINCREMENT,
+		date   TEXT    NOT NULL,
+		kind   TEXT    NOT NULL,
+		wrong  TEXT    NOT NULL DEFAULT '',
+		right  TEXT    NOT NULL DEFAULT ''
+	);`,
 }
 
 // Store is a SQLite-backed card repository.
