@@ -31,15 +31,16 @@ const (
 	Learn
 	Write
 	Talk
+	Fluency
 	Words
 	Stats
 )
 
 // screens is the order of the tabs and of tab / shift+tab.
-var screens = []Screen{Home, Review, Learn, Write, Talk, Words, Stats}
+var screens = []Screen{Home, Review, Learn, Write, Talk, Fluency, Words, Stats}
 
 func (s Screen) String() string {
-	return [...]string{"Home", "Review", "Learn", "Write", "Talk", "Words", "Stats"}[s]
+	return [...]string{"Home", "Review", "Learn", "Write", "Talk", "Fluency", "Words", "Stats"}[s]
 }
 
 // Config is what the app needs from the outside world.
@@ -85,6 +86,7 @@ type App struct {
 	learn          learnState
 	write          writeState
 	talk           talkState
+	fluency        fluencyState
 	mistakeCounts  map[string]int // major writing errors per kind, as stored
 	recordMistakes RecordMistakesFunc
 
@@ -164,6 +166,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.gotTurn(msg)
 	case talkFeedbackMsg:
 		return a.gotTalkFeedback(msg), nil
+	case fluencyTickMsg:
+		return a.gotFluencyTick(msg)
 	}
 	return a, nil
 }
@@ -224,6 +228,8 @@ func (a App) typing() bool {
 		return a.teacher != nil && a.write.typing()
 	case Talk:
 		return a.teacher != nil && a.talk.phase == talkChatting
+	case Fluency:
+		return a.fluency.typing()
 	}
 	return false
 }
@@ -244,6 +250,8 @@ func (a App) updateScreen(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return a.updateWrite(msg)
 	case Talk:
 		return a.updateTalk(msg)
+	case Fluency:
+		return a.updateFluency(msg)
 	}
 	return a, nil
 }

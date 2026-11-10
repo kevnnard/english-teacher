@@ -64,6 +64,13 @@ var helpSections = []helpSection{
 		{"n", "a new role-play from the feedback"},
 		{"esc", "back to Home; the conversation stays"},
 	}},
+	{"Fluency", [][2]string{
+		{"↑ ↓ / j k", "choose a topic (the last one: type your own)"},
+		{"enter", "pick it; then start each round's clock"},
+		{"ctrl+d", "end the round early; the time stops"},
+		{"n", "a new topic between rounds or from the result"},
+		{"esc", "back to Home; the clock keeps running"},
+	}},
 	{"Words", [][2]string{
 		{"/", "filter by word or meaning (enter keep · esc clear)"},
 		{"↑ ↓ / j k", "scroll"},

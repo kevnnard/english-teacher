@@ -184,7 +184,7 @@ func TestTabCyclesScreens(t *testing.T) {
 		a, _ = press(t, a, "tab")
 		visited = append(visited, a.Screen())
 	}
-	want := []Screen{Review, Learn, Write, Talk, Words, Stats, Home}
+	want := []Screen{Review, Learn, Write, Talk, Fluency, Words, Stats, Home}
 	if fmt.Sprint(visited) != fmt.Sprint(want) {
 		t.Errorf("tab visited %v, want %v", visited, want)
 	}
