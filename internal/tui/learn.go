@@ -13,13 +13,15 @@ import (
 	"github.com/kevnnard/english-teacher/internal/teacher"
 )
 
-// Teacher is the AI teacher the Learn and Write screens use.
+// Teacher is the AI teacher the Learn, Write and Talk screens use.
 // *teacher.Teacher implements it; tests use a fake.
 type Teacher interface {
 	Reading(ctx context.Context, level domain.Level, known []string) (teacher.Reading, error)
 	WritingTask(ctx context.Context, level domain.Level, recent, focus []string) (teacher.WritingTask, error)
 	Correct(ctx context.Context, level domain.Level, task, text string) (teacher.Correction, error)
 	Judge(ctx context.Context, level domain.Level, attempts []teacher.Attempt) ([]bool, error)
+	RolePlay(ctx context.Context, level domain.Level, s teacher.Scenario, lines []teacher.Line) (teacher.Turn, error)
+	RolePlayFeedback(ctx context.Context, level domain.Level, s teacher.Scenario, lines []teacher.Line) (teacher.Feedback, error)
 }
 
 // AddFunc stores new cards and returns how many words were new.

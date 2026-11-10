@@ -116,18 +116,24 @@ func (a *App) logMistakes() {
 		}
 	}
 
+	w.logErr = a.storeMistakes(mistakes)
+}
+
+// storeMistakes logs mistakes and, only once they are stored, adds them
+// to the in-memory counts that choose the next writing focus.
+func (a *App) storeMistakes(mistakes []domain.Mistake) error {
 	if a.recordMistakes != nil {
 		if err := a.recordMistakes(mistakes); err != nil {
-			w.logErr = err
-			return
+			return err
 		}
 	}
 	if a.mistakeCounts == nil {
 		a.mistakeCounts = map[string]int{}
 	}
-	for kind, n := range inText {
-		a.mistakeCounts[kind] += n
+	for _, m := range mistakes {
+		a.mistakeCounts[m.Kind]++
 	}
+	return nil
 }
 
 // checkRewrite checks the learner's rewrite of the current error locally.

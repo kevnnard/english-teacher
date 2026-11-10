@@ -109,6 +109,8 @@ func (a App) screenView(w, h int) string {
 		return a.learnView(w, h)
 	case Write:
 		return a.writeView(w, h)
+	case Talk:
+		return a.talkView(w, h)
 	default:
 		return a.st.main.title.Render(a.screen.String())
 	}
@@ -209,6 +211,8 @@ func (a App) hints() []string {
 		return a.learnHints()
 	case Write:
 		return a.writeHints()
+	case Talk:
+		return a.talkHints()
 	case Words:
 		if a.words.filtering {
 			return []string{"type to filter", "enter keep", "esc clear"}

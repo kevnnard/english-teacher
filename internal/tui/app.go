@@ -30,15 +30,16 @@ const (
 	Review
 	Learn
 	Write
+	Talk
 	Words
 	Stats
 )
 
 // screens is the order of the tabs and of tab / shift+tab.
-var screens = []Screen{Home, Review, Learn, Write, Words, Stats}
+var screens = []Screen{Home, Review, Learn, Write, Talk, Words, Stats}
 
 func (s Screen) String() string {
-	return [...]string{"Home", "Review", "Learn", "Write", "Words", "Stats"}[s]
+	return [...]string{"Home", "Review", "Learn", "Write", "Talk", "Words", "Stats"}[s]
 }
 
 // Config is what the app needs from the outside world.
@@ -53,7 +54,7 @@ type Config struct {
 	Days    []domain.Day   // recorded study days, for the streak and the week
 	Record  RecordFunc     // called after each grade and undo; nil records nothing
 
-	Teacher Teacher // the AI teacher; nil turns Learn and Write off
+	Teacher Teacher // the AI teacher; nil turns Learn, Write and Talk off
 	Add     AddFunc // stores cards the teacher made; nil adds nothing
 
 	MistakeCounts  map[string]int     // logged major writing errors per kind
@@ -83,6 +84,7 @@ type App struct {
 	add            AddFunc
 	learn          learnState
 	write          writeState
+	talk           talkState
 	mistakeCounts  map[string]int // major writing errors per kind, as stored
 	recordMistakes RecordMistakesFunc
 
@@ -158,6 +160,10 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.gotCorrection(msg), nil
 	case judgeMsg:
 		return a.gotJudge(msg), nil
+	case talkMsg:
+		return a.gotTurn(msg)
+	case talkFeedbackMsg:
+		return a.gotTalkFeedback(msg), nil
 	}
 	return a, nil
 }
@@ -216,6 +222,8 @@ func (a App) typing() bool {
 		return !s.done() && s.phase == typing
 	case Write:
 		return a.teacher != nil && a.write.typing()
+	case Talk:
+		return a.teacher != nil && a.talk.phase == talkChatting
 	}
 	return false
 }
@@ -234,6 +242,8 @@ func (a App) updateScreen(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return a.updateLearn(msg)
 	case Write:
 		return a.updateWrite(msg)
+	case Talk:
+		return a.updateTalk(msg)
 	}
 	return a, nil
 }

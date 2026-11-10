@@ -13,6 +13,7 @@ func TestHelpShowsTheKeysOfTheCurrentScreen(t *testing.T) {
 		{Learn, "mark or unmark the word", "reveal the answer"},
 		{Write, "send your text to the teacher", "mark or unmark the word"},
 		{Review, "reveal the answer", "send your text"},
+		{Talk, "finish the role-play early", "send your text"},
 	}
 	for _, tt := range tests {
 		x := newAIApp(t, tt.screen)

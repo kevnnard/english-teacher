@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -27,6 +28,33 @@ type fakeTeacher struct {
 	verdicts   []bool              // the answer of Judge
 	judgeErr   error               // the error of Judge
 	judgeCalls [][]teacher.Attempt // every Judge call
+
+	turns         []teacher.Turn   // the answers of RolePlay, in order; the last one repeats
+	turnErr       error            // the error of RolePlay
+	talkCalls     [][]teacher.Line // the transcript of every RolePlay call
+	scenario      teacher.Scenario // the scenario of the last role-play call
+	feedback      teacher.Feedback // the answer of RolePlayFeedback
+	feedbackErr   error            // the error of RolePlayFeedback
+	feedbackCalls [][]teacher.Line // the transcript of every RolePlayFeedback call
+}
+
+func (f *fakeTeacher) RolePlay(_ context.Context, l domain.Level, s teacher.Scenario, lines []teacher.Line) (teacher.Turn, error) {
+	f.level, f.scenario = l, s
+	f.talkCalls = append(f.talkCalls, slices.Clone(lines))
+	if f.turnErr != nil || len(f.turns) == 0 {
+		return teacher.Turn{}, f.turnErr
+	}
+	turn := f.turns[0]
+	if len(f.turns) > 1 {
+		f.turns = f.turns[1:]
+	}
+	return turn, nil
+}
+
+func (f *fakeTeacher) RolePlayFeedback(_ context.Context, l domain.Level, s teacher.Scenario, lines []teacher.Line) (teacher.Feedback, error) {
+	f.level, f.scenario = l, s
+	f.feedbackCalls = append(f.feedbackCalls, slices.Clone(lines))
+	return f.feedback, f.feedbackErr
 }
 
 func (f *fakeTeacher) Reading(_ context.Context, l domain.Level, known []string) (teacher.Reading, error) {

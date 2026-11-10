@@ -55,6 +55,15 @@ var helpSections = []helpSection{
 		{"n", "a new task from the feedback or the result"},
 		{"esc", "back to Home; your work stays"},
 	}},
+	{"Talk", [][2]string{
+		{"↑ ↓ / j k", "choose a situation"},
+		{"enter", "start it; while talking, send your line"},
+		{"ctrl+d", "finish the role-play early and get feedback"},
+		{"enter", "after a failed answer: send the same line again"},
+		{"s", "save the error cards again if saving failed"},
+		{"n", "a new role-play from the feedback"},
+		{"esc", "back to Home; the conversation stays"},
+	}},
 	{"Words", [][2]string{
 		{"/", "filter by word or meaning (enter keep · esc clear)"},
 		{"↑ ↓ / j k", "scroll"},
