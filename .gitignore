@@ -1,3 +1,8 @@
 /teacher
 *.db
 design/preview.html
+
+# Local process notes and design drafts, never published
+.atl/
+odd/
+design/

@@ -8,7 +8,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// Every screen is a notebook page (design/DESIGN.md §4): a top bar with the
+// Every screen is a notebook page (the notebook design): a top bar with the
 // date, the page context and the tabs; a margin line down the left; the
 // status bar at the bottom.
 const (

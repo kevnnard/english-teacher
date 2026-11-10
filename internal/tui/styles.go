@@ -7,7 +7,7 @@ import (
 )
 
 // colors holds one color per role of the notebook palette
-// (design/DESIGN.md §3): warm paper tones, an amber accent and a red margin
+// (the notebook design): warm paper tones, an amber accent and a red margin
 // line. Light values are darker shades of the same hues so text stays
 // readable on a light terminal. Primary text uses the terminal's own
 // foreground, so it has no entry here.
@@ -36,7 +36,7 @@ func newColors(dark bool) colors {
 	}
 }
 
-// roles are the text styles of DESIGN.md §3. The same roles exist twice: on
+// roles are the text styles of the notebook design. The same roles exist twice: on
 // the plain canvas and on the tinted chrome, because a style must carry the
 // background itself for it to survive the reset at the end of each segment.
 type roles struct {
