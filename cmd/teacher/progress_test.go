@@ -263,3 +263,32 @@ func TestAppConfigReportsABrokenConfig(t *testing.T) {
 		t.Errorf("err = %v", err)
 	}
 }
+
+func TestAppConfigLoadsAndRecordsMistakes(t *testing.T) {
+	db := filepath.Join(t.TempDir(), "teacher.db")
+	st := openDB(t, db)
+	ctx := context.Background()
+	nov9 := domain.Date{Year: 2026, Month: 11, Day: 9}
+	if err := st.RecordMistakes(ctx, []domain.Mistake{{Date: nov9, Kind: "be", Wrong: "I has", Right: "I have"}}); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := appConfig(ctx, st, appOptions{dbPath: db, configPath: filepath.Join(t.TempDir(), "config.json")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.MistakeCounts["be"] != 1 || len(cfg.MistakeCounts) != 1 {
+		t.Errorf("MistakeCounts = %v", cfg.MistakeCounts)
+	}
+	err = cfg.RecordMistakes([]domain.Mistake{
+		{Date: nov9, Kind: "be", Wrong: "she are", Right: "she is"},
+		{Date: nov9, Kind: "plural", Wrong: "two dog", Right: "two dogs"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	counts, _ := st.MistakeCounts(ctx)
+	if counts["be"] != 2 || counts["plural"] != 1 {
+		t.Errorf("RecordMistakes did not reach the store: %v", counts)
+	}
+}

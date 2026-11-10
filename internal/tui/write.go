@@ -3,12 +3,13 @@ package tui
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 
+	"github.com/kevnnard/english-teacher/internal/check"
 	"github.com/kevnnard/english-teacher/internal/domain"
 	"github.com/kevnnard/english-teacher/internal/teacher"
 )
@@ -19,19 +20,40 @@ const maxWritingMinutes = 30
 // recentWordCount is how many of the newest words a writing task suggests.
 const recentWordCount = 10
 
+// focusKinds is how many recurring error kinds the next task targets.
+const focusKinds = 2
+
+// recurringCount is how many times an error kind must be seen before it
+// counts as a pattern.
+const recurringCount = 2
+
+// writePhase is where the learner is in the six steps of Write (spec S13):
+// plan (the task), write, self-correct, feedback, rewrite and result.
 type writePhase int
 
 const (
 	writeIdle      writePhase = iota // nothing asked yet
 	writeTaskWait                    // waiting for a task
 	writeTaskFail                    // the teacher could not give a task
-	writeComposing                   // the learner is writing
+	writeComposing                   // steps 1 and 2: the task and its phrases; the learner writes
 	writeChecking                    // waiting for the correction
-	writeCorrected                   // the correction is on screen
+	writeFixing                      // step 3: the learner fixes each marked error alone
+	writeJudging                     // waiting for the judge of the learner's fixes
+	writeFeedback                    // step 4: what was fixed, what was not and why
+	writeRewriting                   // step 5: the learner writes each unfixed error again
+	writeResult                      // step 6: the rubric, the cards and the pattern
 )
 
-// writeState is the Write screen: one task, the learner's text and its
-// correction.
+// majorFix is one major error and what the learner did with it.
+type majorFix struct {
+	teacher.Fix
+	attempt string       // the learner's own fix in step 3; "" means "I don't know"
+	fixed   bool         // the attempt fixes the error
+	rewrite check.Result // the step 5 check of an error the learner did not fix
+}
+
+// writeState is the Write screen: one task, the learner's text, its
+// correction and the learner's work on the major errors.
 type writeState struct {
 	phase      writePhase
 	req        int // the id of the latest request; older answers are ignored
@@ -39,12 +61,37 @@ type writeState struct {
 	text       string
 	startedAt  time.Time // when the task appeared, for the study minutes
 	correction teacher.Correction
-	cards      []domain.Card // the error cards, kept until they are saved
-	added      int
-	err        error // the last failed request or save, shown on the page
+
+	majors   []majorFix
+	cursor   int    // the error being fixed (step 3) or the position in rewrites (step 5)
+	input    string // what the learner is typing in step 3 or 5
+	checked  bool   // step 5: the current rewrite was checked
+	judged   []int  // indexes in majors sent to the judge
+	judgeErr error  // the judge failed; its attempts count as not fixed
+	rewrites []int  // indexes in majors the learner did not fix, for step 5
+	minors   bool   // the minor details are shown
+
+	patternKind  string // the most repeated error kind of this text, when it is a pattern
+	patternCount int    // how many times patternKind has been seen, this text included
+	logErr       error  // the major errors could not be logged
+
+	cards []domain.Card // the error cards, kept until they are saved
+	added int
+	err   error // the last failed request or save, shown on the page
 }
 
-// taskMsg and correctionMsg are the teacher's answers to request req.
+// typing reports whether every key is a letter of the learner's text.
+func (w writeState) typing() bool {
+	switch w.phase {
+	case writeComposing, writeFixing:
+		return true
+	case writeRewriting:
+		return !w.checked
+	}
+	return false
+}
+
+// taskMsg, correctionMsg and judgeMsg are the teacher's answers to request req.
 type taskMsg struct {
 	req  int
 	task teacher.WritingTask
@@ -57,15 +104,22 @@ type correctionMsg struct {
 	err        error
 }
 
-// askTask starts a request for a new writing task.
+type judgeMsg struct {
+	req      int
+	verdicts []bool
+	err      error
+}
+
+// askTask starts a request for a new writing task aimed at the learner's
+// recurring errors.
 func (a App) askTask() (App, tea.Cmd) {
 	if a.teacher == nil {
 		return a, nil
 	}
 	a.write = writeState{phase: writeTaskWait, req: a.write.req + 1}
-	req, tc, level, recent := a.write.req, a.teacher, a.profile.Level, a.recentWords()
+	req, tc, level, recent, focus := a.write.req, a.teacher, a.profile.Level, a.recentWords(), a.focus()
 	return a, func() tea.Msg {
-		t, err := tc.WritingTask(context.Background(), level, recent, nil)
+		t, err := tc.WritingTask(context.Background(), level, recent, focus)
 		return taskMsg{req: req, task: t, err: err}
 	}
 }
@@ -80,6 +134,20 @@ func (a App) gotTask(msg taskMsg) App {
 	}
 	a.write.phase, a.write.task, a.write.startedAt = writeComposing, msg.task, a.now()
 	return a
+}
+
+// focus is the error kinds the next task should practice: the focusKinds
+// most counted kinds seen at least recurringCount times, in teacher.Kinds
+// order on a tie. "Other" says nothing to practice, so it never counts.
+func (a App) focus() []string {
+	var kinds []string
+	for _, k := range teacher.Kinds {
+		if k.Name != teacher.OtherKind && a.mistakeCounts[k.Name] >= recurringCount {
+			kinds = append(kinds, k.Name)
+		}
+	}
+	slices.SortStableFunc(kinds, func(x, y string) int { return a.mistakeCounts[y] - a.mistakeCounts[x] })
+	return kinds[:min(len(kinds), focusKinds)]
 }
 
 // askCorrection sends the learner's text to the teacher.
@@ -97,8 +165,8 @@ func (a App) askCorrection() (App, tea.Cmd) {
 	}
 }
 
-// gotCorrection shows the correction, turns every error into a card and
-// records the writing as study.
+// gotCorrection records the writing as study and starts the
+// self-correction of the major errors.
 func (a App) gotCorrection(msg correctionMsg) App {
 	w := &a.write
 	if msg.req != w.req || w.phase != writeChecking {
@@ -108,23 +176,27 @@ func (a App) gotCorrection(msg correctionMsg) App {
 		w.phase, w.err = writeComposing, msg.err
 		return a
 	}
-	w.phase, w.correction = writeCorrected, msg.correction
-
-	w.cards = nil
-	for _, f := range msg.correction.Fixes {
-		w.cards = append(w.cards, f.Card(sentenceWith(w.text, f.Wrong)))
-	}
-	a.saveFixCards()
+	w.correction = msg.correction
 	minutes := min(int(a.now().Sub(w.startedAt)/time.Minute), maxWritingMinutes)
 	a.addToToday(domain.Day{
 		Minutes:    max(minutes, 0),
 		Activities: []string{fmt.Sprintf("Writing: %d/%d", msg.correction.Total(), teacher.MaxTotal)},
 	})
+
+	w.majors = nil
+	for _, f := range msg.correction.Majors() {
+		w.majors = append(w.majors, majorFix{Fix: f})
+	}
+	if len(w.majors) == 0 {
+		a.startFeedback()
+		return a
+	}
+	w.phase, w.cursor, w.input = writeFixing, 0, ""
 	return a
 }
 
-// saveFixCards stores the error cards of the correction. On failure the
-// cards stay in the state, so `s` can try again.
+// saveFixCards stores the error cards. On failure the cards stay in the
+// state, so `s` can try again.
 func (a *App) saveFixCards() {
 	w := &a.write
 	if len(w.cards) == 0 || a.add == nil {
@@ -169,6 +241,15 @@ func sentenceWith(text, chunk string) string {
 	return ""
 }
 
+// editInput applies a key to a one-line input: backspace deletes, any
+// other key adds its text.
+func editInput(s string, msg tea.KeyPressMsg) string {
+	if msg.String() == "backspace" {
+		return dropLastRune(s)
+	}
+	return s + msg.Text
+}
+
 func (a App) updateWrite(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	w := &a.write
 	k := msg.String()
@@ -176,13 +257,6 @@ func (a App) updateWrite(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case writeIdle, writeTaskFail:
 		if k == "enter" {
 			return a.askTask()
-		}
-	case writeCorrected:
-		switch {
-		case k == "n":
-			return a.askTask()
-		case k == "s" && len(w.cards) > 0:
-			a.saveFixCards()
 		}
 	case writeComposing:
 		switch k {
@@ -192,116 +266,48 @@ func (a App) updateWrite(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			a.screen = Home // the draft stays for later
 		case "enter":
 			w.text += "\n"
-		case "backspace":
-			w.text = dropLastRune(w.text)
 		default:
-			w.text += msg.Text
+			w.text = editInput(w.text, msg)
+		}
+	case writeFixing:
+		switch k {
+		case "enter":
+			return a.submitAttempt()
+		case "esc":
+			a.screen = Home // the attempts stay for later
+		default:
+			w.input = editInput(w.input, msg)
+		}
+	case writeFeedback:
+		switch {
+		case k == "enter" && len(w.rewrites) > 0:
+			w.phase, w.cursor, w.input, w.checked = writeRewriting, 0, "", false
+		case k == "enter":
+			w.phase = writeResult
+		case k == "d":
+			w.minors = !w.minors
+		case k == "s" && len(w.cards) > 0:
+			a.saveFixCards()
+		case k == "n":
+			return a.askTask()
+		}
+	case writeRewriting:
+		switch {
+		case w.checked && k == "enter":
+			w.nextRewrite()
+		case w.checked:
+			// Only enter goes on; the other keys are global.
+		case k == "enter":
+			w.checkRewrite()
+		case k == "esc":
+			a.screen = Home
+		default:
+			w.input = editInput(w.input, msg)
+		}
+	case writeResult:
+		if k == "n" {
+			return a.askTask()
 		}
 	}
 	return a, nil
-}
-
-func (a App) writeView(w, h int) string {
-	r := a.st.main
-	s := a.write
-	width := max(w, 20)
-	var b strings.Builder
-	b.WriteString(r.title.Render("Write") + "\n\n")
-	switch {
-	case a.teacher == nil:
-		b.WriteString(r.secondary.Render("The AI teacher is off. Install Gentle Shell (the pi command) and see `teacher models`."))
-		return b.String()
-	case s.phase == writeIdle:
-		b.WriteString(r.target.Render("Write a few sentences and the teacher corrects them.") + "\n")
-		b.WriteString(r.secondary.Render("Every error comes back as a card, so you practice the right way to say it."))
-		return b.String()
-	case s.phase == writeTaskWait:
-		b.WriteString(r.secondary.Render("Choosing a task for you… this takes about 10 seconds."))
-		return b.String()
-	case s.phase == writeTaskFail:
-		b.WriteString(r.danger.Render("✗ Could not get a task: "+s.err.Error()) + "\n\n")
-		b.WriteString(r.label.Render("Press enter to try again."))
-		return b.String()
-	}
-
-	b.WriteString(r.target.Render(ansi.Wordwrap(s.task.Task, width, "")) + "\n")
-	if s.task.Hint != "" {
-		b.WriteString(r.label.Render(ansi.Wordwrap(s.task.Hint, width, "")) + "\n")
-	}
-	b.WriteString("\n")
-
-	switch s.phase {
-	case writeComposing:
-		if s.err != nil {
-			b.WriteString(r.danger.Render("✗ Could not correct it: "+s.err.Error()) + "\n")
-			b.WriteString(r.label.Render("Your text is still here; press ctrl+d to try again.") + "\n\n")
-		}
-		b.WriteString(r.secondary.Render("Your text") + "\n")
-		b.WriteString(indent(ansi.Wrap(s.text, width-2, "")+r.accent.Render("▏"), 2))
-	case writeChecking:
-		b.WriteString(indent(r.secondary.Render(ansi.Wrap(s.text, width-2, "")), 2) + "\n\n")
-		b.WriteString(r.secondary.Render("Correcting your text… this takes about 10 seconds."))
-	case writeCorrected:
-		b.WriteString(a.correctionView(width))
-	}
-	return b.String()
-}
-
-func (a App) correctionView(width int) string {
-	r := a.st.main
-	s := a.write
-	c := s.correction
-	var b strings.Builder
-	b.WriteString(r.value.Render(fmt.Sprintf("%d/%d", c.Total(), teacher.MaxTotal)))
-	if c.Comment != "" {
-		b.WriteString(r.secondary.Render("  " + c.Comment))
-	}
-	b.WriteString("\n\n" + r.label.Render("Corrected") + "\n")
-	b.WriteString(indent(r.target.Render(ansi.Wordwrap(c.Corrected, width-2, "")), 2) + "\n\n")
-
-	if len(c.Fixes) == 0 {
-		b.WriteString(r.success.Render("✓ ") + r.secondary.Render("No errors. Nice work!"))
-		return b.String()
-	}
-	b.WriteString(r.label.Render("Errors") + "\n")
-	for _, f := range c.Fixes {
-		b.WriteString("  " + r.danger.Render("✗ "+f.Wrong) + r.label.Render("  →  ") + r.success.Render("✓ "+f.Right) + "\n")
-		if f.Why != "" {
-			b.WriteString(indent(r.secondary.Render(ansi.Wordwrap(f.Why, width-4, "")), 4) + "\n")
-		}
-	}
-	b.WriteString("\n")
-	switch {
-	case s.err != nil:
-		b.WriteString(r.danger.Render("✗ Could not add the cards: "+s.err.Error()) + "\n")
-		b.WriteString(r.label.Render("Press s to try again."))
-	case s.added == 1:
-		b.WriteString(r.success.Render("✓ ") + r.secondary.Render("Added 1 card to practice."))
-	case s.added > 1:
-		b.WriteString(r.success.Render("✓ ") + r.secondary.Render(fmt.Sprintf("Added %d cards to practice.", s.added)))
-	default:
-		b.WriteString(r.secondary.Render("These errors are already in your cards."))
-	}
-	return b.String()
-}
-
-func (a App) writeHints() []string {
-	switch {
-	case a.teacher == nil:
-		return []string{"tab screens", "esc home", "? help"}
-	}
-	switch a.write.phase {
-	case writeIdle:
-		return []string{"enter get a task", "tab screens", "esc home", "? help"}
-	case writeTaskFail:
-		return []string{"enter try again", "esc home"}
-	case writeComposing:
-		return []string{"type your text", "enter new line", "ctrl+d send", "esc home"}
-	case writeCorrected:
-		if len(a.write.cards) > 0 {
-			return []string{"s save cards", "n new task", "esc home"}
-		}
-		return []string{"n new task", "tab screens", "esc home"}
-	}
-	return []string{"tab screens", "esc home"}
 }

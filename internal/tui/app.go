@@ -3,6 +3,7 @@
 package tui
 
 import (
+	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -54,7 +55,14 @@ type Config struct {
 
 	Teacher Teacher // the AI teacher; nil turns Learn and Write off
 	Add     AddFunc // stores cards the teacher made; nil adds nothing
+
+	MistakeCounts  map[string]int     // logged major writing errors per kind
+	RecordMistakes RecordMistakesFunc // logs major writing errors; nil logs nothing
 }
+
+// RecordMistakesFunc logs the major errors of one text, like
+// store.RecordMistakes.
+type RecordMistakesFunc func([]domain.Mistake) error
 
 // DefaultMaxNew is the usual cap on new cards in one session.
 const DefaultMaxNew = 20
@@ -71,10 +79,12 @@ type App struct {
 	lastStudy time.Time     // when the learner last graded a card
 	studied   time.Duration // study time not yet recorded as a whole minute
 
-	teacher Teacher
-	add     AddFunc
-	learn   learnState
-	write   writeState
+	teacher        Teacher
+	add            AddFunc
+	learn          learnState
+	write          writeState
+	mistakeCounts  map[string]int // major writing errors per kind, as stored
+	recordMistakes RecordMistakesFunc
 
 	screen        Screen
 	width, height int // terminal size; zero until the first WindowSizeMsg
@@ -101,19 +111,22 @@ func NewApp(cfg Config) App {
 		profile.DailyGoalMinutes = domain.DefaultDailyGoalMinutes
 	}
 	return App{
-		cards:     cards,
-		save:      cfg.Save,
-		now:       cfg.Now,
-		profile:   profile,
-		days:      slices.Clone(cfg.Days),
-		record:    cfg.Record,
-		teacher:   cfg.Teacher,
-		add:       cfg.Add,
-		lastStudy: cfg.Now(),
-		screen:    cfg.Start,
-		st:        newStyles(true), // until the terminal reports its background
-		notes:     true,
-		review:    newSession(cards, queue, false, cfg.Now()),
+		cards:   cards,
+		save:    cfg.Save,
+		now:     cfg.Now,
+		profile: profile,
+		days:    slices.Clone(cfg.Days),
+		record:  cfg.Record,
+		teacher: cfg.Teacher,
+		add:     cfg.Add,
+
+		mistakeCounts:  maps.Clone(cfg.MistakeCounts),
+		recordMistakes: cfg.RecordMistakes,
+		lastStudy:      cfg.Now(),
+		screen:         cfg.Start,
+		st:             newStyles(true), // until the terminal reports its background
+		notes:          true,
+		review:         newSession(cards, queue, false, cfg.Now()),
 	}
 }
 
@@ -143,6 +156,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.gotTask(msg), nil
 	case correctionMsg:
 		return a.gotCorrection(msg), nil
+	case judgeMsg:
+		return a.gotJudge(msg), nil
 	}
 	return a, nil
 }
@@ -200,7 +215,7 @@ func (a App) typing() bool {
 		s := a.current()
 		return !s.done() && s.phase == typing
 	case Write:
-		return a.teacher != nil && a.write.phase == writeComposing
+		return a.teacher != nil && a.write.typing()
 	}
 	return false
 }

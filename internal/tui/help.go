@@ -49,9 +49,11 @@ var helpSections = []helpSection{
 	{"Write", [][2]string{
 		{"enter", "get a task; while writing, a new line"},
 		{"ctrl+d", "send your text to the teacher"},
-		{"esc", "back to Home; your draft stays"},
-		{"n", "a new task after the correction"},
+		{"enter", "fixing or rewriting: submit (empty: I don't know)"},
+		{"d", "show / hide the minor details in the feedback"},
 		{"s", "save the error cards again if saving failed"},
+		{"n", "a new task from the feedback or the result"},
+		{"esc", "back to Home; your work stays"},
 	}},
 	{"Words", [][2]string{
 		{"/", "filter by word or meaning (enter keep · esc clear)"},

@@ -72,21 +72,41 @@ func sampleReading() teacher.Reading {
 	}
 }
 
+// mistakeLog is a fake RecordMistakes function that remembers every batch.
+type mistakeLog struct {
+	logged [][]domain.Mistake
+	err    error
+}
+
+func (m *mistakeLog) record(ms []domain.Mistake) error {
+	m.logged = append(m.logged, ms)
+	return m.err
+}
+
 type aiApp struct {
 	App
 	ft    *fakeTeacher
 	ad    *adder
 	log   *studyLog
+	mk    *mistakeLog
 	clock *testClock
 }
 
 func newAIApp(t *testing.T, start Screen) aiApp {
 	t.Helper()
-	x := aiApp{ft: &fakeTeacher{reading: sampleReading()}, ad: &adder{}, log: &studyLog{}, clock: &testClock{t: fixedNow}}
+	return newAIAppWithCounts(t, start, nil)
+}
+
+// newAIAppWithCounts is newAIApp with the error kinds already logged.
+func newAIAppWithCounts(t *testing.T, start Screen, counts map[string]int) aiApp {
+	t.Helper()
+	x := aiApp{ft: &fakeTeacher{reading: sampleReading()}, ad: &adder{}, log: &studyLog{}, mk: &mistakeLog{},
+		clock: &testClock{t: fixedNow}}
 	a := NewApp(Config{
 		Cards: deck(), Save: (&recorder{}).save, Now: x.clock.now, Start: start, MaxNew: DefaultMaxNew,
 		Profile: domain.Profile{Level: domain.A2}, Record: x.log.record,
 		Teacher: x.ft, Add: x.ad.add,
+		MistakeCounts: counts, RecordMistakes: x.mk.record,
 	})
 	x.App = send(t, a, tea.WindowSizeMsg{Width: 120, Height: 40})
 	return x
