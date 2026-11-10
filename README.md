@@ -85,6 +85,7 @@ current screen.
 | | `ctrl+d` | send your text to the teacher |
 | | `esc` | back to Home; the draft stays |
 | | `n` | a new task after the correction |
+| | `s` | save the error cards again if saving failed |
 | Words | `/` | filter by word or meaning (`enter` keep · `esc` clear) |
 | | `↑` `↓` / `j` `k` | scroll |
 

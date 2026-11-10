@@ -39,6 +39,7 @@ type writeState struct {
 	text       string
 	startedAt  time.Time // when the task appeared, for the study minutes
 	correction teacher.Correction
+	cards      []domain.Card // the error cards, kept until they are saved
 	added      int
 	err        error // the last failed request or save, shown on the page
 }
@@ -109,24 +110,34 @@ func (a App) gotCorrection(msg correctionMsg) App {
 	}
 	w.phase, w.correction = writeCorrected, msg.correction
 
-	var cards []domain.Card
+	w.cards = nil
 	for _, f := range msg.correction.Fixes {
-		cards = append(cards, f.Card(sentenceWith(w.text, f.Wrong)))
+		w.cards = append(w.cards, f.Card(sentenceWith(w.text, f.Wrong)))
 	}
-	if len(cards) > 0 && a.add != nil {
-		if n, err := a.add(cards); err != nil {
-			w.err = err
-		} else {
-			w.added = n
-			a.addCards(cards)
-		}
-	}
+	a.saveFixCards()
 	minutes := min(int(a.now().Sub(w.startedAt)/time.Minute), maxWritingMinutes)
 	a.addToToday(domain.Day{
 		Minutes:    max(minutes, 0),
 		Activities: []string{fmt.Sprintf("Writing: %d/%d", msg.correction.Score, teacher.MaxScore)},
 	})
 	return a
+}
+
+// saveFixCards stores the error cards of the correction. On failure the
+// cards stay in the state, so `s` can try again.
+func (a *App) saveFixCards() {
+	w := &a.write
+	if len(w.cards) == 0 || a.add == nil {
+		w.cards = nil
+		return
+	}
+	n, err := a.add(w.cards)
+	if err != nil {
+		w.err = err
+		return
+	}
+	a.addCards(w.cards)
+	w.added, w.cards, w.err = n, nil, nil
 }
 
 // recentWords are the newest words of the deck, newest first.
@@ -167,8 +178,11 @@ func (a App) updateWrite(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return a.askTask()
 		}
 	case writeCorrected:
-		if k == "n" {
+		switch {
+		case k == "n":
 			return a.askTask()
+		case k == "s" && len(w.cards) > 0:
+			a.saveFixCards()
 		}
 	case writeComposing:
 		switch k {
@@ -259,7 +273,8 @@ func (a App) correctionView(width int) string {
 	b.WriteString("\n")
 	switch {
 	case s.err != nil:
-		b.WriteString(r.danger.Render("✗ Could not add the cards: " + s.err.Error()))
+		b.WriteString(r.danger.Render("✗ Could not add the cards: "+s.err.Error()) + "\n")
+		b.WriteString(r.label.Render("Press s to try again."))
 	case s.added == 1:
 		b.WriteString(r.success.Render("✓ ") + r.secondary.Render("Added 1 card to practice."))
 	case s.added > 1:
@@ -283,6 +298,9 @@ func (a App) writeHints() []string {
 	case writeComposing:
 		return []string{"type your text", "enter new line", "ctrl+d send", "esc home"}
 	case writeCorrected:
+		if len(a.write.cards) > 0 {
+			return []string{"s save cards", "n new task", "esc home"}
+		}
 		return []string{"n new task", "tab screens", "esc home"}
 	}
 	return []string{"tab screens", "esc home"}

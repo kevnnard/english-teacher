@@ -134,3 +134,24 @@ func TestGlossCard(t *testing.T) {
 		t.Errorf("card = %+v", c)
 	}
 }
+
+func TestReadingKeepsAtMostMaxNewWordsNew(t *testing.T) {
+	m := &fakeModel{reply: `{"title":"t","text":"x","glossary":[
+		{"word":"a","meaning":"1","new":true},{"word":"b","meaning":"2","new":true},
+		{"word":"c","meaning":"3","new":true},{"word":"d","meaning":"4","new":true},{"word":"e","meaning":"5"}]}`}
+
+	r, err := New(models(m)).Reading(context.Background(), domain.A1, nil)
+
+	if err != nil || len(r.Glossary) != 5 {
+		t.Fatalf("reading = %+v, %v", r, err)
+	}
+	news := 0
+	for _, g := range r.Glossary {
+		if g.New {
+			news++
+		}
+	}
+	if news != MaxNewWords || r.Glossary[3].New {
+		t.Errorf("%d new (d new: %v), want the first %d only", news, r.Glossary[3].New, MaxNewWords)
+	}
+}

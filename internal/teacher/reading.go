@@ -57,11 +57,19 @@ func (t *Teacher) Reading(ctx context.Context, level domain.Level, known []strin
 	if strings.TrimSpace(out.Text) == "" {
 		return Reading{}, errors.New("teacher: the reading came back empty")
 	}
+	// The model may ignore the limit, so only the first MaxNewWords new
+	// entries stay new: the others are still listed, just not pre-marked.
 	var glossary []Gloss
+	news := 0
 	for _, g := range out.Glossary {
-		if strings.TrimSpace(g.Word) != "" && strings.TrimSpace(g.Meaning) != "" {
-			glossary = append(glossary, g)
+		if strings.TrimSpace(g.Word) == "" || strings.TrimSpace(g.Meaning) == "" {
+			continue
 		}
+		if g.New {
+			news++
+			g.New = news <= MaxNewWords
+		}
+		glossary = append(glossary, g)
 	}
 	out.Glossary = glossary
 	return out, nil

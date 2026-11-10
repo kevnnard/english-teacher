@@ -177,3 +177,23 @@ func TestSentenceWith(t *testing.T) {
 		t.Errorf("got %q", got)
 	}
 }
+
+func TestWriteFailedCardsCanBeSavedAgain(t *testing.T) {
+	x := composing(t)
+	x.ad.err = errors.New("disk full")
+	a := typeText(t, x.App, "I has 30 years.")
+	a, cmd := press(t, a, "ctrl+d")
+	a = run(t, a, cmd)
+	mustContain(t, statusBar(a), "s save cards")
+
+	x.ad.err = nil
+	a, _ = press(t, a, "s")
+
+	mustContain(t, pageText(a), "Added 1 card to practice")
+	if len(x.ad.added) != 2 || len(x.log.deltas) != 1 {
+		t.Errorf("add calls %d, recorded %d; the writing is recorded once", len(x.ad.added), len(x.log.deltas))
+	}
+	if a, _ = press(t, a, "s"); len(x.ad.added) != 2 {
+		t.Error("s after a successful save must not add again")
+	}
+}
