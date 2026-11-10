@@ -141,7 +141,8 @@ func (f Fix) Card(sentence string) domain.Card {
 func (t *Teacher) WritingTask(ctx context.Context, level domain.Level, recent, focus []string) (WritingTask, error) {
 	prompt := fmt.Sprintf("Give one short writing task for level %s about everyday life (3 to 6 sentences). "+
 		"It should give the learner a reason to use some of these recent words: %s. "+
-		"The task is in simple English; the hint is in Spanish and suggests how to start. "+
+		"The task is in simple English, at most 2 short sentences and at most 25 words, with no lists of examples; "+
+		"the hint is one short sentence in Spanish that suggests how to start. "+
 		"Add 2 to %d useful phrases: short English chunks the learner can reuse in the text, "+
 		"taken from the recent words when they fit.", level, list(recent), MaxPhrases)
 	if len(focus) > 0 {

@@ -334,3 +334,15 @@ func TestWritingTaskFillsPhrasesFromRecentWords(t *testing.T) {
 		}
 	}
 }
+
+func TestWritingTaskAsksForABriefTask(t *testing.T) {
+	m := &fakeModel{reply: `{"task":"t","hint":"h"}`}
+	if _, err := New(models(m)).WritingTask(context.Background(), domain.A1, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"at most 2 short sentences", "at most 25 words", "hint is one short sentence"} {
+		if !strings.Contains(m.got[0].Prompt, want) {
+			t.Errorf("prompt lacks %q:\n%s", want, m.got[0].Prompt)
+		}
+	}
+}
