@@ -713,6 +713,7 @@ internal/tui/       Bubbletea screens
 
 - **0.1.0** — every text feature: Review, Learn, Write, Talk, Fluency, Quiz, streak and daily log. See [CHANGELOG.md](CHANGELOG.md).
 - **0.2.0** — voice, all local and optional: `p` to listen everywhere, Listen (dictation), Pairs (minimal pairs), Speak (shadowing with per-word feedback) and Talk by voice.
+- **0.3.0** — more input and feedback: stories in chapters, long listening, an adaptive level with a level check, cloze and chunks in Quiz, a Progress page with can-do goals, word stress and intonation in Pairs.
 - **Next** — audio cache for instant replays, a microphone check in `teacher doctor`, retention chart on Home.
 
 ## Releasing

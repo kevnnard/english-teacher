@@ -1,5 +1,52 @@
 # Changelog
 
+## 0.3.0 — 2026-11-11
+
+More input, a level that adapts, grammar in context, progress you can see,
+and prosody. Opening this version upgrades the database to migration 7;
+existing data is kept.
+
+### Input
+- Stories in Learn: stories at your level in chapters of about 250–400
+  words, mostly known words. The next chapter continues the story; each
+  chapter has one comprehension question; recorded as "Reading: <story> ch N".
+- Words read are counted per week.
+- Long listening in Listen: a 2–5 minute dialogue or story read by Piper,
+  heard first without text, then 3–5 questions, then the transcript
+  sentence by sentence; recorded as "Listening: N/M".
+
+### Level
+- The Level screen shows each readiness criterion for the next CEFR level
+  and its current value: known words, Write average, grammar quiz,
+  Listen/Pairs accuracy and days at the level.
+- When every criterion is met, Home offers a short level check (reading,
+  writing and grammar at the next level); passing it raises the level.
+- `teacher set level <A1..C2>` sets the level by hand. The level never
+  rises any other way.
+
+### Grammar in context
+- Quiz has a cloze mode: gaps in sentences from your own texts and cards,
+  mixing at least 3 grammar points per round.
+- Chunks such as "I'm looking for…" become cards in Review (`a` on the
+  feedback; missed chunks are added at the end).
+
+### Progress
+- Progress page (`g` on Home): this week against last week (study time,
+  new words, words learned, words read, Write average, top errors and
+  whether they are falling) and the CEFR "can do" goals of your level,
+  ticked by the activities that prove them.
+- Words added or learned before 0.3.0 have no date, so no week counts them.
+
+### Prosody
+- Pairs has two more modes (`m`): word stress (hear a word, pick the
+  stressed syllable: PHO·to·graph / pho·TOG·ra·phy) and intonation (hear a
+  sentence, choose question ↗ or statement ↘). Results are stored like
+  pair stats, and the weakest drills come first.
+
+### Data
+- Migration 6 adds stories and words read per day; migration 7 adds the
+  dates a word was added and became known, and the can-do goal ticks.
+
 ## 0.2.0 — 2026-11-10
 
 Voice. Everything runs on your machine and is optional: without Piper or
