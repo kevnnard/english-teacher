@@ -57,20 +57,25 @@ func (t *Teacher) Reading(ctx context.Context, level domain.Level, known []strin
 	if strings.TrimSpace(out.Text) == "" {
 		return Reading{}, errors.New("teacher: the reading came back empty")
 	}
-	// The model may ignore the limit, so only the first MaxNewWords new
-	// entries stay new: the others are still listed, just not pre-marked.
+	out.Glossary = cleanGlossary(out.Glossary, MaxNewWords)
+	return out, nil
+}
+
+// cleanGlossary drops entries without a word or a meaning. The model may
+// ignore the limit of new words, so only the first maxNew new entries
+// stay new: the others are still listed, just not pre-marked.
+func cleanGlossary(entries []Gloss, maxNew int) []Gloss {
 	var glossary []Gloss
 	news := 0
-	for _, g := range out.Glossary {
+	for _, g := range entries {
 		if strings.TrimSpace(g.Word) == "" || strings.TrimSpace(g.Meaning) == "" {
 			continue
 		}
 		if g.New {
 			news++
-			g.New = news <= MaxNewWords
+			g.New = news <= maxNew
 		}
 		glossary = append(glossary, g)
 	}
-	out.Glossary = glossary
-	return out, nil
+	return glossary
 }

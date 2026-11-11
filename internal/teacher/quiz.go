@@ -112,11 +112,16 @@ func (t *Teacher) GrammarQuiz(ctx context.Context, level domain.Level, focus []s
 // cleanItem trims an item and reports whether it is valid: a question,
 // exactly QuizOptions different options and an answer index among them.
 func cleanItem(it QuizItem) (QuizItem, bool) {
+	return cleanChoice(it, QuizOptions)
+}
+
+// cleanChoice is cleanItem for a question with n options.
+func cleanChoice(it QuizItem, n int) (QuizItem, bool) {
 	it.Question, it.Why = strings.TrimSpace(it.Question), strings.TrimSpace(it.Why)
-	if it.Question == "" || len(it.Options) != QuizOptions || it.Answer < 0 || it.Answer >= QuizOptions {
+	if it.Question == "" || len(it.Options) != n || it.Answer < 0 || it.Answer >= n {
 		return QuizItem{}, false
 	}
-	options := make([]string, 0, QuizOptions)
+	options := make([]string, 0, n)
 	for _, o := range it.Options {
 		o = strings.TrimSpace(o)
 		if o == "" || hasFold(options, o) {
