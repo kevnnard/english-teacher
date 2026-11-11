@@ -32,6 +32,7 @@ var helpSections = []helpSection{
 	{"Home", [][2]string{
 		{"enter", "start the preselected action"},
 		{"l", "your level and the level check"},
+		{"g", "progress: this week against last week, can-do goals"},
 	}},
 	{"Review", [][2]string{
 		{"space", "reveal the answer (English → Spanish)"},
@@ -118,6 +119,9 @@ var helpSections = []helpSection{
 		{"1–4", "answer a question of the check's reading"},
 		{"enter", "go on to the writing, then the grammar quiz"},
 		{"x", "stop the level check; nothing is recorded"},
+	}},
+	{"Progress", [][2]string{
+		{"↑ ↓ / j k", "choose a can-do goal: see how to prove it"},
 	}},
 	{"Words", [][2]string{
 		{"/", "filter by word or meaning (enter keep · esc clear)"},

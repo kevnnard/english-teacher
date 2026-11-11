@@ -391,6 +391,14 @@ func appConfig(ctx context.Context, st *store.Store, opts appOptions) (tui.Confi
 	if err != nil {
 		return tui.Config{}, err
 	}
+	dated, err := st.Mistakes(ctx)
+	if err != nil {
+		return tui.Config{}, err
+	}
+	ticks, err := st.GoalTicks(ctx)
+	if err != nil {
+		return tui.Config{}, err
+	}
 	pairStats, err := st.PairStats(ctx)
 	if err != nil {
 		return tui.Config{}, err
@@ -421,7 +429,11 @@ func appConfig(ctx context.Context, st *store.Store, opts appOptions) (tui.Confi
 		Add:         func(c []domain.Card) (int, error) { return st.AddCards(ctx, c) },
 
 		MistakeCounts:  mistakes,
+		Mistakes:       dated,
 		RecordMistakes: func(m []domain.Mistake) error { return st.RecordMistakes(ctx, m) },
+
+		GoalTicks: ticks,
+		TickGoal:  func(id string, on domain.Date) error { return st.TickGoal(ctx, id, on) },
 
 		SaveProfile: func(p domain.Profile) error { return st.SaveProfile(ctx, p) },
 

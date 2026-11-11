@@ -53,7 +53,8 @@ func (a App) homeView() string {
 	b.WriteString(r.label.Render(fmt.Sprintf("%-8s", "Week")) + a.weekRow() + "\n")
 	b.WriteString(r.label.Render(fmt.Sprintf("%-8s", "Read")) + r.value.Render(strconv.Itoa(a.wordsReadThisWeek())) +
 		r.secondary.Render(" words this week") + "\n\n")
-	b.WriteString(r.label.Render(fmt.Sprintf("%-8s", "Level")) + a.levelLine())
+	b.WriteString(r.label.Render(fmt.Sprintf("%-8s", "Level")) + a.levelLine() + "\n")
+	b.WriteString(r.label.Render(fmt.Sprintf("%-8s", "Goals")) + a.goalsLine())
 	return b.String()
 }
 

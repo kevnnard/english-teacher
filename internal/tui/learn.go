@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -175,10 +176,33 @@ func (a *App) addGlossary(glossary []teacher.Gloss, marked []bool) (int, error) 
 	return n, nil
 }
 
+// datedAdd wraps add so every new card is stored with the day it was
+// added, which the weekly summary counts. A nil add stays nil.
+func datedAdd(add AddFunc, now func() time.Time) AddFunc {
+	if add == nil {
+		return nil
+	}
+	return func(cards []domain.Card) (int, error) {
+		return add(dated(cards, domain.DateOf(now())))
+	}
+}
+
+// dated returns a copy of cards with a zero Added set to on.
+func dated(cards []domain.Card, on domain.Date) []domain.Card {
+	out := slices.Clone(cards)
+	for i := range out {
+		if out[i].Added == (domain.Date{}) {
+			out[i].Added = on
+		}
+	}
+	return out
+}
+
 // addCards puts cards the store just added into the deck, in both
 // directions, so Words and the counts show them at once. They are studied
 // from the next session, which plans its queue on start.
 func (a *App) addCards(cards []domain.Card) {
+	cards = dated(cards, a.today())
 	have := map[string]bool{}
 	for _, c := range a.cards {
 		have[strings.ToLower(c.Word)] = true

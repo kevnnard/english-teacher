@@ -52,6 +52,7 @@
 | 🗣️ | **Do people understand what I say?** | **Speak**: say your own sentences; whisper marks each word it understood (needs audio and whisper) |
 | 🔥 | **Am I keeping it up?** | **Home** and **Stats**: streak, daily goal and study log |
 | 🎯 | **Am I ready for the next level?** | **Level** (`l` on Home): each criterion from your real data, then a short level check |
+| 📈 | **Am I getting better?** | **Progress** (`g` on Home): this week against last week, and the "can do" goals of your level |
 
 ## Install
 
@@ -119,7 +120,7 @@ three times, faster each time), **Quiz** (vocabulary from your cards,
 grammar from the AI, or grammar in context: gaps in your own sentences), **Listen** (dictation of your own sentences, with
 audio), **Pairs** (minimal pairs like ship / sheep, with audio), **Speak**
 (say a sentence and see which words whisper understood, with audio and
-whisper), **Words** (every word with its status), **Stats** and **Level** (`l` on Home: readiness for the next level and the level check). Every screen is a notebook page: the top bar shows the date,
+whisper), **Words** (every word with its status), **Stats**, **Level** (`l` on Home: readiness for the next level and the level check) and **Progress** (`g` on Home: the weekly summary and the can-do goals). Every screen is a notebook page: the top bar shows the date,
 the page ("Page 3 of 26" during a review) and the screen tabs (on 80
 columns the page name, which the active tab already shows, and then the
 date make room for them, down to the weekday); a margin line
@@ -439,6 +440,28 @@ check: not yet`). The writing and the quiz are logged like any other, so a
 weak one counts toward the next readiness too. `x` stops a check. The level
 never goes up any other way, except `teacher set level`. C2 is the top level.
 
+### Progress
+
+Home shows how many "can do" goals of your level are ticked, like `2 of 6
+A1 can-do goals`; `g` opens the Progress page. It has two parts.
+
+**This week against last week** (weeks run Monday to Sunday): study time,
+new words, words learned (a word is learned on the day its interval
+reaches 21 days), words read in stories, the Write average out of 40, and
+the 3 error kinds logged most over both weeks, each with this week's and
+last week's count and whether it is falling or rising. With nothing
+recorded in either week, the page says so instead of showing zeros. Words
+added or learned before 0.3.0 have no date, so no week counts them.
+
+**Can do** lists short CEFR-style statements for your level, like "I can
+order a drink and ask how much it is." Each one is ticked (✓) by the
+activity that proves it, from your real data since your level started:
+finishing a Talk role-play, a Write score, a long listening or dictation
+score, story chapters read, a Fluency session, or a story question answered
+right (stored when you answer). `↑` `↓` choose a goal and the line under the
+list says how to tick it, or the day it was proved. Goals marked `–` have no
+activity in the app that proves them yet and are never ticked.
+
 ### Stories
 
 `s` on Learn switches between the short texts and a story; `s` again goes
@@ -564,6 +587,7 @@ current screen.
 | | `ctrl+c` | quit |
 | Home | `enter` | start the preselected action |
 | | `l` | your level and the level check |
+| | `g` | progress: this week against last week, can-do goals |
 | Review | `space` | reveal the answer (English → Spanish) |
 | | `1`–`4` | grade your recall: 1 again · 2 hard · 3 good · 4 easy |
 | | `enter` | check a typed answer (Spanish → English) |
@@ -631,6 +655,7 @@ current screen.
 | Level | `enter` | take the level check once every line has a ✓; then go on to each part |
 | | `1`–`4` | answer a question of the check's reading |
 | | `x` | stop the level check; nothing is recorded |
+| Progress | `↑` `↓` / `j` `k` | choose a can-do goal: see how to prove it |
 | Words | `/` | filter by word or meaning (`enter` keep · `esc` clear) |
 | | `↑` `↓` / `j` `k` | scroll |
 

@@ -230,6 +230,11 @@ func (a *App) answerChapter(choice int) {
 	})
 	s.saved.Done = true
 	a.saveStory()
+	if choice == s.chapter.Question.Answer {
+		if err := a.tickGoals(domain.StoryAnswered); err != nil {
+			s.err = err
+		}
+	}
 }
 
 // wordsReadThisWeek is the stored count of words read this week.

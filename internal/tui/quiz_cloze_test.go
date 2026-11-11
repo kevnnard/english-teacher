@@ -153,7 +153,8 @@ func TestClozeChunkIsAddedOnceAndShowsInReview(t *testing.T) {
 	if len(x.ad.added) != 1 {
 		t.Fatalf("%d adds, want 1: %v", len(x.ad.added), x.ad.added)
 	}
-	if want := []domain.Card{lookingFor.Card()}; !reflect.DeepEqual(x.ad.added[0], want) {
+	// The chunk card is stored with the day it was added.
+	if want := dated([]domain.Card{lookingFor.Card()}, today); !reflect.DeepEqual(x.ad.added[0], want) {
 		t.Errorf("added %+v, want %+v", x.ad.added[0], want)
 	}
 
@@ -164,7 +165,7 @@ func TestClozeChunkIsAddedOnceAndShowsInReview(t *testing.T) {
 	a, _ = press(t, a, "enter")
 	a = answerCloze(t, a, "gonna")
 	a, _ = press(t, a, "enter")
-	if want := [][]domain.Card{{lookingFor.Card()}, {couldYou.Card()}}; !reflect.DeepEqual(x.ad.added, want) {
+	if want := [][]domain.Card{dated([]domain.Card{lookingFor.Card()}, today), dated([]domain.Card{couldYou.Card()}, today)}; !reflect.DeepEqual(x.ad.added, want) {
 		t.Errorf("added %+v, want %+v", x.ad.added, want)
 	}
 	mustContain(t, pageText(a), "1/3", "Added to Review: Could you…?")

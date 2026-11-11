@@ -186,7 +186,7 @@ func (a *App) grade(ans domain.Answer, next bool) tea.Cmd {
 	failed := !ans.Grade().Passed()
 
 	if !s.practice {
-		card := srs.Review(before, ans.Grade(), a.now())
+		card := domain.TrackKnown(before, srs.Review(before, ans.Grade(), a.now()), a.today())
 		if before.Direction == domain.Production && s.result.Kind != check.Exact {
 			card.LastWrong = strings.TrimSpace(s.input)
 		}
@@ -225,7 +225,7 @@ func (a *App) grade(ans domain.Answer, next bool) tea.Cmd {
 func (a *App) regrade(ans domain.Answer) tea.Cmd {
 	s := a.current()
 	if !s.practice && s.undo != nil {
-		card := srs.Review(s.undo.before, ans.Grade(), a.now())
+		card := domain.TrackKnown(s.undo.before, srs.Review(s.undo.before, ans.Grade(), a.now()), a.today())
 		if err := a.save(card); err != nil {
 			a.err = err
 			return nil

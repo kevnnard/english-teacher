@@ -133,6 +133,7 @@ func (a *App) storeMistakes(mistakes []domain.Mistake) error {
 	for _, m := range mistakes {
 		a.mistakeCounts[m.Kind]++
 	}
+	a.mistakes = append(a.mistakes, mistakes...)
 	return nil
 }
 

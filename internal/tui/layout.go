@@ -132,6 +132,8 @@ func (a App) screenView(w, h int) string {
 		return a.speakView(w)
 	case Level:
 		return a.levelView(w)
+	case Progress:
+		return a.progressView()
 	default:
 		return a.st.main.title.Render(a.screen.String())
 	}
@@ -264,6 +266,8 @@ func (a App) hints() []string {
 		return a.speakHints() // its own p and s say the sentence
 	case Level:
 		return a.levelHints()
+	case Progress:
+		return a.progressHints()
 	case Words:
 		if a.words.filtering {
 			return []string{"type to filter", "enter keep", "esc clear"}

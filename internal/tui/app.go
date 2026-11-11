@@ -39,14 +39,15 @@ const (
 	Speak
 	Words
 	Stats
-	Level // the readiness for the next level and the level check; opened with l on Home, not a tab
+	Level    // the readiness for the next level and the level check; opened with l on Home, not a tab
+	Progress // the weekly summary and the can-do goals; opened with g on Home, not a tab
 )
 
 // screens is the order of the tabs and of tab / shift+tab.
 var screens = []Screen{Home, Review, Learn, Write, Talk, Fluency, Quiz, Listen, Pairs, Speak, Words, Stats}
 
 func (s Screen) String() string {
-	return [...]string{"Home", "Review", "Learn", "Write", "Talk", "Fluency", "Quiz", "Listen", "Pairs", "Speak", "Words", "Stats", "Level"}[s]
+	return [...]string{"Home", "Review", "Learn", "Write", "Talk", "Fluency", "Quiz", "Listen", "Pairs", "Speak", "Words", "Stats", "Level", "Progress"}[s]
 }
 
 // Config is what the app needs from the outside world.
@@ -74,13 +75,21 @@ type Config struct {
 	RecordPairs RecordPairsFunc            // adds a round's results to the totals; nil saves nothing
 
 	MistakeCounts  map[string]int     // logged major writing errors per kind
+	Mistakes       []domain.Mistake   // every logged major error with its date, for the weekly summary
 	RecordMistakes RecordMistakesFunc // logs major writing errors; nil logs nothing
+
+	GoalTicks map[string]domain.Date // the stored can-do goal ticks, by goal id
+	TickGoal  TickGoalFunc           // stores a can-do goal tick; nil stores nothing
 
 	SaveProfile SaveProfileFunc // stores the profile after a passed level check; nil saves nothing
 
 	Story     domain.Story  // the story being read in Learn; the zero story means none yet
 	SaveStory SaveStoryFunc // stores the story after each chapter and answer; nil saves nothing
 }
+
+// TickGoalFunc stores that a can-do goal was proved on a day, like
+// store.TickGoal.
+type TickGoalFunc func(id string, on domain.Date) error
 
 // SaveProfileFunc stores the learner profile, like store.SaveProfile.
 type SaveProfileFunc func(domain.Profile) error
@@ -121,7 +130,11 @@ type App struct {
 	fluency        fluencyState
 	quiz           quizState
 	mistakeCounts  map[string]int // major writing errors per kind, as stored
+	mistakes       []domain.Mistake
 	recordMistakes RecordMistakesFunc
+	goalTicks      map[string]domain.Date // stored can-do goal ticks, by goal id
+	tickGoal       TickGoalFunc
+	goalCursor     int // the goal selected on the Progress screen
 
 	speaker   speech.Speaker // nil when audio is not set up
 	listen    listenState
@@ -169,7 +182,7 @@ func NewApp(cfg Config) App {
 		days:    slices.Clone(cfg.Days),
 		record:  cfg.Record,
 		teacher: cfg.Teacher,
-		add:     cfg.Add,
+		add:     datedAdd(cfg.Add, cfg.Now),
 		speaker: cfg.Speaker,
 		voices:  slices.Clone(cfg.Voices),
 
@@ -180,7 +193,10 @@ func NewApp(cfg Config) App {
 		recordPairs: cfg.RecordPairs,
 
 		mistakeCounts:  maps.Clone(cfg.MistakeCounts),
+		mistakes:       slices.Clone(cfg.Mistakes),
 		recordMistakes: cfg.RecordMistakes,
+		goalTicks:      maps.Clone(cfg.GoalTicks),
+		tickGoal:       cfg.TickGoal,
 		saveProfile:    cfg.SaveProfile,
 		story:          storyState{saved: cfg.Story},
 		saveStoryFn:    cfg.SaveStory,
@@ -340,9 +356,13 @@ func (a App) updateScreen(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			a.screen = a.homeAction().target
 		case "l":
 			a.screen = Level
+		case "g":
+			a.screen = Progress
 		}
 	case Level:
 		return a.updateLevel(msg)
+	case Progress:
+		return a.updateProgress(msg)
 	case Review:
 		return a.updateReview(msg)
 	case Words:
