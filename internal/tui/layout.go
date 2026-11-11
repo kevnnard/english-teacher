@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -89,6 +90,11 @@ func (a App) page(w, h int) []string {
 	}
 	left := r.base.Render(strings.Repeat(" ", a.margin())) + r.margin.Render("│")
 	text := block("\n"+indent(s, gutter), max(w-a.margin()-1, 0), h, r.base)
+	if n := a.listen.notice; n != "" && len(text) > 0 {
+		// The audio notice takes the last row of the page.
+		pad := strings.Repeat(" ", gutter)
+		text[len(text)-1] = block(pad+r.warning.Render(n), max(w-a.margin()-1, 0), 1, r.base)[0]
+	}
 	for i := range text {
 		text[i] = left + text[i]
 	}
@@ -215,17 +221,17 @@ func (a App) hints() []string {
 	case Home:
 		return []string{"enter start", "tab screens", ": palette", "? help", "q quit"}
 	case Review:
-		return a.reviewHints()
+		return withListen(a.reviewHints(), a.listenHints())
 	case Learn:
-		return a.learnHints()
+		return withListen(a.learnHints(), a.listenHints())
 	case Write:
-		return a.writeHints()
+		return withListen(a.writeHints(), a.listenHints())
 	case Talk:
 		return a.talkHints()
 	case Fluency:
 		return a.fluencyHints()
 	case Quiz:
-		return a.quizHints()
+		return withListen(a.quizHints(), a.listenHints())
 	case Words:
 		if a.words.filtering {
 			return []string{"type to filter", "enter keep", "esc clear"}
@@ -234,4 +240,19 @@ func (a App) hints() []string {
 	default:
 		return []string{"tab screens", ": palette", "esc home", "? help"}
 	}
+}
+
+// withListen puts the audio hints after the screen's own keys, before the
+// general ones (tab, esc, ?), which are the first to drop when narrow.
+func withListen(hints, listen []string) []string {
+	if len(listen) == 0 {
+		return hints
+	}
+	i := slices.IndexFunc(hints, func(h string) bool {
+		return h == "tab screens" || h == "esc home" || h == "? help"
+	})
+	if i < 0 {
+		i = len(hints)
+	}
+	return slices.Insert(slices.Clone(hints), i, listen...)
 }

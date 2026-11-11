@@ -292,6 +292,18 @@ Voices live in `$XDG_DATA_HOME/english-teacher/voices/`
 (`~/.local/share/english-teacher/voices/`). Sound plays through the first of
 `pw-play`, `paplay`, `aplay` or `afplay` on your PATH.
 
+Press `p` to listen; `p` twice within 2 seconds plays the same text slower.
+
+| Screen | `p` says |
+|---|---|
+| Review | the English word; after `space`, the word and its example. A typed (Spanish → English) card only once checked, so it never gives the answer away |
+| Learn | the selected glossary word; `P` reads the whole text |
+| Write | the right version of the first error you did not fix (feedback), or of the one you just rewrote |
+| Quiz | the right answer, once you have answered |
+
+While you type, `p` is a letter. Without audio, `p` shows
+"Audio is off: run `teacher doctor`" and nothing else changes.
+
 
 <details>
 <summary>Where your data lives</summary>
@@ -332,17 +344,20 @@ current screen.
 | | `enter` | check a typed answer (Spanish → English) |
 | | `u` / `ctrl+z` | undo the last grade (`ctrl+z` also works while typing an answer) |
 | | `r` | review the session's mistakes again (dates don't move) |
+| | `p` | listen to the word, and after `space` its example; a typed card only once checked |
 | Learn | `enter` | get a short text written for you |
 | | `↑` `↓` / `j` `k` | move through the glossary |
 | | `space` | mark or unmark a word to study |
 | | `a` | done: add the marked words as cards |
 | | `n` | a new text |
+| | `p` / `P` | listen to the selected glossary word / read the whole text |
 | Write | `enter` | get a task; while writing, a new line |
 | | `ctrl+d` | send your text to the teacher |
 | | `enter` | fixing or rewriting: submit (empty: I don't know) |
 | | `d` | show / hide the minor details in the feedback |
 | | `s` | save the error cards again if saving failed |
 | | `n` | a new task from the feedback or the result |
+| | `p` | in the feedback and a checked rewrite: listen to the right version |
 | | `esc` | back to Home; your work stays |
 | Talk | `↑` `↓` / `j` `k` | choose a situation |
 | | `enter` | start it; while talking, send your line (after a failed answer, the same line again) |
@@ -361,6 +376,7 @@ current screen.
 | | `enter` | check a typed answer (empty: I don't know) |
 | | `enter` | after a failed grammar quiz: try again |
 | | `n` | a new quiz from the result |
+| | `p` | after an answer: listen to the right answer |
 | | `esc` | back to Home; the quiz stays |
 | Words | `/` | filter by word or meaning (`enter` keep · `esc` clear) |
 | | `↑` `↓` / `j` `k` | scroll |

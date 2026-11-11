@@ -38,6 +38,7 @@ var helpSections = []helpSection{
 		{"enter", "check a typed answer (Spanish → English)"},
 		{"u", "undo the last grade (ctrl+z while typing an answer)"},
 		{"r", "review the session's mistakes again (dates don't move)"},
+		{"p", "listen to the word (typed: once checked); p p slower"},
 	}},
 	{"Learn", [][2]string{
 		{"enter", "get a short text written for you"},
@@ -45,6 +46,7 @@ var helpSections = []helpSection{
 		{"space", "mark or unmark the word to study"},
 		{"a", "done: add the marked words as cards"},
 		{"n", "a new text"},
+		{"p / P", "hear the selected word / the whole text; p p slower"},
 	}},
 	{"Write", [][2]string{
 		{"enter", "get a task; while writing, a new line"},
@@ -53,6 +55,7 @@ var helpSections = []helpSection{
 		{"d", "show / hide the minor details in the feedback"},
 		{"s", "save the error cards again if saving failed"},
 		{"n", "a new task from the feedback or the result"},
+		{"p", "feedback, checked rewrite: hear the right version"},
 		{"esc", "back to Home; your work stays"},
 	}},
 	{"Talk", [][2]string{
@@ -78,6 +81,7 @@ var helpSections = []helpSection{
 		{"enter", "check a typed answer (empty: I don't know)"},
 		{"enter", "after a failed grammar quiz: try again"},
 		{"n", "a new quiz from the result"},
+		{"p", "after an answer: hear the right one; p p slower"},
 		{"esc", "back to Home; the quiz stays"},
 	}},
 	{"Words", [][2]string{

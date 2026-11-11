@@ -95,6 +95,9 @@ type App struct {
 	mistakeCounts  map[string]int // major writing errors per kind, as stored
 	recordMistakes RecordMistakesFunc
 
+	speaker speech.Speaker // nil when audio is not set up
+	listen  listenState
+
 	screen        Screen
 	width, height int // terminal size; zero until the first WindowSizeMsg
 	st            styles
@@ -128,6 +131,7 @@ func NewApp(cfg Config) App {
 		record:  cfg.Record,
 		teacher: cfg.Teacher,
 		add:     cfg.Add,
+		speaker: cfg.Speaker,
 
 		mistakeCounts:  maps.Clone(cfg.MistakeCounts),
 		recordMistakes: cfg.RecordMistakes,
@@ -175,6 +179,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.gotFluencyTick(msg)
 	case quizGrammarMsg:
 		return a.gotGrammar(msg), nil
+	case spokenMsg:
+		return a.gotSpoken(msg), nil
 	}
 	return a, nil
 }
@@ -183,6 +189,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // global keys, then the active screen.
 func (a App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	k := msg.String()
+	a.listen.notice = "" // an audio notice lasts until the next key
 	switch {
 	case k == "ctrl+c":
 		return a, tea.Quit
@@ -197,6 +204,9 @@ func (a App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return a, nil
 	case a.typing():
 		return a.updateScreen(msg) // letters belong to the text input
+	}
+	if a, cmd, ok := a.listenKey(k); ok {
+		return a, cmd
 	}
 
 	switch k {
