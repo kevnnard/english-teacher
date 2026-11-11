@@ -51,3 +51,29 @@ func (s *Store) MistakeCounts(ctx context.Context) (map[string]int, error) {
 	}
 	return counts, rows.Err()
 }
+
+// Mistakes returns every logged mistake with its date, oldest first, so a
+// week's errors can be counted.
+func (s *Store) Mistakes(ctx context.Context) ([]domain.Mistake, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT date, kind, wrong, right FROM mistakes ORDER BY date, id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var mistakes []domain.Mistake
+	for rows.Next() {
+		var (
+			m    domain.Mistake
+			date string
+		)
+		if err := rows.Scan(&date, &m.Kind, &m.Wrong, &m.Right); err != nil {
+			return nil, err
+		}
+		if m.Date, err = domain.ParseDate(date); err != nil {
+			return nil, fmt.Errorf("mistake %q: %w", m.Wrong, err)
+		}
+		mistakes = append(mistakes, m)
+	}
+	return mistakes, rows.Err()
+}

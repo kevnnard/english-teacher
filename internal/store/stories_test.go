@@ -168,8 +168,8 @@ func TestMigration6KeepsAV5Database(t *testing.T) {
 
 	var version int
 	must(t, s.db.QueryRow(`PRAGMA user_version`).Scan(&version))
-	if version != 6 || version != len(migrations) {
-		t.Errorf("user_version = %d, want 6 = len(migrations) %d", version, len(migrations))
+	if version < 6 || version != len(migrations) {
+		t.Errorf("user_version = %d, want every migration (%d), 6 included", version, len(migrations))
 	}
 	if after := tableRows(t, s.db); !reflect.DeepEqual(after, before) {
 		t.Errorf("rows changed by migration 6:\n%q\nwant\n%q", after, before)
@@ -194,7 +194,7 @@ func TestMigration6OnAFreshDatabase(t *testing.T) {
 	s := openTemp(t)
 	var version, n int
 	must(t, s.db.QueryRow(`PRAGMA user_version`).Scan(&version))
-	if version != 6 {
+	if version < 6 {
 		t.Errorf("user_version = %d, want 6", version)
 	}
 	must(t, s.db.QueryRow(`SELECT COUNT(*) FROM stories`).Scan(&n))

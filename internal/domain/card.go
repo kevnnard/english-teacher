@@ -34,6 +34,40 @@ type Card struct {
 	Repetitions  int
 	// Due is when the card should be reviewed next. The zero time means "due now".
 	Due time.Time
+
+	// Added is the day the word was added to the deck. It is the same in
+	// both directions, and zero when unknown: words imported or added
+	// before the app kept the date.
+	Added Date
+	// KnownSince is the day this direction's interval last reached
+	// KnownIntervalDays, so the word became known. It is zero while the
+	// card is not known, and also when it became known before the app
+	// kept the date.
+	KnownSince Date
+}
+
+// Known reports whether c's interval is long enough for the word to count
+// as known: KnownIntervalDays (21) days or more.
+func (c Card) Known() bool {
+	return c.IntervalDays >= KnownIntervalDays
+}
+
+// TrackKnown returns after, the card as a review on day on left it, with
+// KnownSince kept up to date against before, the card as it was:
+//
+//   - not known before and known after: known since on;
+//   - known before and after: the first date stays (zero stays zero);
+//   - not known after: zero, the word is no longer known.
+func TrackKnown(before, after Card, on Date) Card {
+	switch {
+	case !after.Known():
+		after.KnownSince = Date{}
+	case !before.Known():
+		after.KnownSince = on
+	default:
+		after.KnownSince = before.KnownSince
+	}
+	return after
 }
 
 // NewCard returns a card for word with a fresh SM-2 schedule.

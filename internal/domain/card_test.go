@@ -78,3 +78,28 @@ func TestGradePassed(t *testing.T) {
 		}
 	}
 }
+
+func TestTrackKnown(t *testing.T) {
+	monday := Date{2026, 11, 9}
+	earlier := Date{2026, 10, 1}
+	tests := []struct {
+		name          string
+		before, after int // interval days before and after the review
+		since         Date
+		want          Date
+	}{
+		{"crosses 21 days: known from today", 10, 25, Date{}, monday},
+		{"stays below 21 days: not known", 6, 15, Date{}, Date{}},
+		{"stays known: the first date stays", 25, 60, earlier, earlier},
+		{"stays known with no date: still unknown", 25, 60, Date{}, Date{}},
+		{"falls below 21 days: no longer known", 30, 1, earlier, Date{}},
+	}
+	for _, tt := range tests {
+		before := Card{Word: "w", IntervalDays: tt.before, KnownSince: tt.since}
+		after := before
+		after.IntervalDays = tt.after
+		if got := TrackKnown(before, after, monday).KnownSince; got != tt.want {
+			t.Errorf("%s: KnownSince = %v, want %v", tt.name, got, tt.want)
+		}
+	}
+}

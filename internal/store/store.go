@@ -116,6 +116,18 @@ var migrations = []string{
 		details  TEXT    NOT NULL DEFAULT '',
 		done     INTEGER NOT NULL DEFAULT 0
 	);`,
+
+	// 7: visible progress. A card keeps the day its word was added and
+	// each direction the day it became known (interval of 21 days or
+	// more), so a week can count both; existing rows get '' (unknown).
+	// goal_ticks keeps the "can do" goals ticked by evidence that is not
+	// stored anywhere else, such as a story question answered right.
+	`ALTER TABLE cards ADD COLUMN added TEXT NOT NULL DEFAULT '';
+	ALTER TABLE reviews ADD COLUMN known_since TEXT NOT NULL DEFAULT '';
+	CREATE TABLE goal_ticks (
+		goal  TEXT PRIMARY KEY,
+		date  TEXT NOT NULL
+	);`,
 }
 
 // Store is a SQLite-backed card repository.
@@ -235,7 +247,7 @@ func (s *Store) ListCards(ctx context.Context, dir domain.Direction) ([]domain.C
 		`SELECT c.word, c.pronunciation, c.meaning, c.example,
 			COALESCE(r.times_correct, 0), COALESCE(r.times_failed, 0), r.last_reviewed,
 			COALESCE(r.ease_factor, ?), COALESCE(r.interval_days, 0), COALESCE(r.repetitions, 0),
-			COALESCE(r.due, ''), COALESCE(r.last_wrong, '')
+			COALESCE(r.due, ''), COALESCE(r.last_wrong, ''), c.added, COALESCE(r.known_since, '')
 		FROM cards c
 		LEFT JOIN reviews r ON r.card_id = c.id AND r.direction = ?
 		ORDER BY c.id`,
@@ -251,11 +263,18 @@ func (s *Store) ListCards(ctx context.Context, dir domain.Direction) ([]domain.C
 			c            = domain.Card{Direction: dir}
 			lastReviewed sql.NullString
 			due          string
+			added, known string
 		)
 		err := rows.Scan(&c.Word, &c.Pronunciation, &c.Meaning, &c.Example, &c.TimesCorrect, &c.TimesFailed,
-			&lastReviewed, &c.EaseFactor, &c.IntervalDays, &c.Repetitions, &due, &c.LastWrong)
+			&lastReviewed, &c.EaseFactor, &c.IntervalDays, &c.Repetitions, &due, &c.LastWrong, &added, &known)
 		if err != nil {
 			return nil, err
+		}
+		if c.Added, err = parseDate(added); err != nil {
+			return nil, fmt.Errorf("card %q: added: %w", c.Word, err)
+		}
+		if c.KnownSince, err = parseDate(known); err != nil {
+			return nil, fmt.Errorf("card %q: known_since: %w", c.Word, err)
 		}
 		if c.Due, err = parseTime(due); err != nil {
 			return nil, fmt.Errorf("card %q: due: %w", c.Word, err)
@@ -272,21 +291,21 @@ func (s *Store) ListCards(ctx context.Context, dir domain.Direction) ([]domain.C
 	return cards, rows.Err()
 }
 
-// SaveCard stores the counters, schedule and last wrong answer of c in its
-// direction after a review. It returns ErrNotFound if c.Word is not in the store.
+// SaveCard stores the counters, schedule, last wrong answer and known
+// date of c in its direction after a review. It returns ErrNotFound if c.Word is not in the store.
 func (s *Store) SaveCard(ctx context.Context, c domain.Card) error {
 	// The WHERE clause also tells SQLite the ON CONFLICT belongs to the INSERT.
 	res, err := s.db.ExecContext(ctx,
 		`INSERT INTO reviews (card_id, direction, times_correct, times_failed, last_reviewed,
-			ease_factor, interval_days, repetitions, due, last_wrong)
-		SELECT id, ?, ?, ?, ?, ?, ?, ?, ?, ? FROM cards WHERE word = ?
+			ease_factor, interval_days, repetitions, due, last_wrong, known_since)
+		SELECT id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? FROM cards WHERE word = ?
 		ON CONFLICT (card_id, direction) DO UPDATE SET
 			times_correct = excluded.times_correct, times_failed = excluded.times_failed,
 			last_reviewed = excluded.last_reviewed, ease_factor = excluded.ease_factor,
 			interval_days = excluded.interval_days, repetitions = excluded.repetitions,
-			due = excluded.due, last_wrong = excluded.last_wrong`,
+			due = excluded.due, last_wrong = excluded.last_wrong, known_since = excluded.known_since`,
 		c.Direction.String(), c.TimesCorrect, c.TimesFailed, formatOptional(c.LastReviewed),
-		c.EaseFactor, c.IntervalDays, c.Repetitions, formatTime(c.Due), c.LastWrong, c.Word)
+		c.EaseFactor, c.IntervalDays, c.Repetitions, formatTime(c.Due), c.LastWrong, formatDate(c.KnownSince), c.Word)
 	if err != nil {
 		return fmt.Errorf("save %q: %w", c.Word, err)
 	}
@@ -309,6 +328,22 @@ func parseTime(s string) (time.Time, error) {
 		return time.Time{}, nil
 	}
 	return time.Parse(timeLayout, s)
+}
+
+// formatDate stores the zero date as "" so it reads back as zero.
+func formatDate(d domain.Date) string {
+	if d == (domain.Date{}) {
+		return ""
+	}
+	return d.String()
+}
+
+// parseDate reads a date stored by formatDate.
+func parseDate(s string) (domain.Date, error) {
+	if s == "" {
+		return domain.Date{}, nil
+	}
+	return domain.ParseDate(s)
 }
 
 // formatOptional maps a nil time to SQL NULL.

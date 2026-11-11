@@ -16,6 +16,8 @@ import (
 // LastWrong, which is the learner's most recent mistake with that word: it
 // is stored on the production direction, where the learner has to write the
 // word and the margin note shows what they wrote before.
+//
+// A new word keeps c.Added as the day it was added (zero: unknown).
 func (s *Store) AddCards(ctx context.Context, cards []domain.Card) (int, error) {
 	added := 0
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -30,9 +32,9 @@ func (s *Store) AddCards(ctx context.Context, cards []domain.Card) (int, error) 
 			continue
 		}
 		insert, err := tx.ExecContext(ctx,
-			`INSERT INTO cards (word, pronunciation, meaning, example) VALUES (?, ?, ?, ?)
+			`INSERT INTO cards (word, pronunciation, meaning, example, added) VALUES (?, ?, ?, ?, ?)
 			ON CONFLICT (word) DO NOTHING`,
-			word, c.Pronunciation, c.Meaning, c.Example)
+			word, c.Pronunciation, c.Meaning, c.Example, formatDate(c.Added))
 		if err != nil {
 			return 0, fmt.Errorf("add %q: %w", word, err)
 		}
