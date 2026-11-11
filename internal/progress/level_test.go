@@ -174,6 +174,18 @@ func TestReadinessReadsDaysInDateOrder(t *testing.T) {
 	}
 }
 
+// Word stress and intonation rounds are logged as "Stress: N/M" and
+// "Intonation: N/M": the Pairs and Listen criteria do not count them.
+func TestPairsAndListenIgnoreProsodyRounds(t *testing.T) {
+	days := []domain.Day{{Date: today, Activities: []string{"Stress: 15/15", "Intonation: 12/12", "Pairs: 18/20"}}}
+	if got := fmt.Sprint(ScoresOf(days, PairsPrefix)); got != "[{18 20}]" {
+		t.Errorf("Pairs scores %s, want only the minimal-pairs round", got)
+	}
+	if got := fmt.Sprint(ScoresOf(days, ListenPrefix)); got != "[]" {
+		t.Errorf("Listen scores %s, want none", got)
+	}
+}
+
 func TestScoresOf(t *testing.T) {
 	days := []domain.Day{
 		{Date: today.AddDays(-1), Activities: []string{"Writing: 30/40", "Quiz: grammar 6/8", "Reading: A day"}},

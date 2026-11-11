@@ -90,6 +90,30 @@ func tableRows(t *testing.T, db *sql.DB) []string {
 	return out
 }
 
+// Word-stress and intonation results are stored like pair stats, keyed
+// by drill ID, next to the contrasts and without changing them.
+func TestProsodyResultsAreStoredWithThePairStats(t *testing.T) {
+	s := openTemp(t)
+	ctx := context.Background()
+	must(t, s.RecordPairResults(ctx, aug14, []domain.PairStat{{Contrast: "th-s", Attempts: 6, Correct: 2}}))
+	must(t, s.RecordPairResults(ctx, nov9, []domain.PairStat{
+		{Contrast: "stress:family", Attempts: 5, Correct: 1},
+		{Contrast: "tone:question", Attempts: 6, Correct: 6},
+	}))
+	must(t, s.RecordPairResults(ctx, nov9, []domain.PairStat{{Contrast: "stress:family", Attempts: 3, Correct: 3}}))
+
+	stats, err := s.PairStats(ctx)
+	must(t, err)
+	want := map[string]domain.PairStat{
+		"th-s":          {Contrast: "th-s", Attempts: 6, Correct: 2},
+		"stress:family": {Contrast: "stress:family", Attempts: 8, Correct: 4},
+		"tone:question": {Contrast: "tone:question", Attempts: 6, Correct: 6},
+	}
+	if !reflect.DeepEqual(stats, want) {
+		t.Errorf("PairStats = %v, want %v", stats, want)
+	}
+}
+
 func TestMigration5KeepsAV4Database(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "teacher.db")
 	openV4(t, path)
