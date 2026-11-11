@@ -395,6 +395,10 @@ func appConfig(ctx context.Context, st *store.Store, opts appOptions) (tui.Confi
 	if err != nil {
 		return tui.Config{}, err
 	}
+	story, _, err := st.CurrentStory(ctx)
+	if err != nil {
+		return tui.Config{}, err
+	}
 	conf, err := loadConfig(opts.configPath)
 	if err != nil {
 		return tui.Config{}, err
@@ -420,6 +424,9 @@ func appConfig(ctx context.Context, st *store.Store, opts appOptions) (tui.Confi
 		RecordMistakes: func(m []domain.Mistake) error { return st.RecordMistakes(ctx, m) },
 
 		SaveProfile: func(p domain.Profile) error { return st.SaveProfile(ctx, p) },
+
+		Story:     story,
+		SaveStory: func(s domain.Story) (int64, error) { return st.SaveStory(ctx, s) },
 
 		PairStats: pairStats,
 		RecordPairs: func(r []domain.PairStat) error {

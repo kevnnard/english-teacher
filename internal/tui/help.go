@@ -42,11 +42,13 @@ var helpSections = []helpSection{
 		{"p", "listen to the word (typed: once checked); p p slower"},
 	}},
 	{"Learn", [][2]string{
-		{"enter", "get a short text written for you"},
-		{"↑ ↓ / j k", "move through the glossary"},
+		{"enter", "get a short text; in a story, the chapter's glossary"},
+		{"s", "a story in chapters (go on or start one); s: texts"},
+		{"↑ ↓ / j k", "move through the glossary; scroll a chapter"},
 		{"space", "mark or unmark the word to study"},
-		{"a", "done: add the marked words as cards"},
-		{"n", "a new text"},
+		{"a", "done: add the marked words (a story: then the question)"},
+		{"1–3", "answer the chapter's question"},
+		{"n", "a new text; after the answer, the next chapter"},
 		{"p / P", "hear the selected word / the whole text; p p slower"},
 	}},
 	{"Write", [][2]string{

@@ -24,6 +24,7 @@ type Teacher interface {
 	RolePlayFeedback(ctx context.Context, level domain.Level, s teacher.Scenario, lines []teacher.Line) (teacher.Feedback, error)
 	GrammarQuiz(ctx context.Context, level domain.Level, focus []string) (teacher.GrammarQuiz, error)
 	CheckReading(ctx context.Context, level domain.Level) (teacher.CheckReading, error)
+	StoryChapter(ctx context.Context, level domain.Level, known []string, so teacher.StorySoFar) (teacher.StoryChapter, error)
 }
 
 // AddFunc stores new cards and returns how many words were new.
@@ -112,7 +113,14 @@ func (a App) knownWords() []string {
 
 func (a App) updateLearn(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	l := &a.learn
-	switch k := msg.String(); {
+	k := msg.String()
+	if k == "s" && l.phase != learnLoading && a.story.phase != storyLoading {
+		return a.toggleStory()
+	}
+	if a.story.on {
+		return a.updateStory(msg)
+	}
+	switch {
 	case k == "enter" && (l.phase == learnIdle || l.phase == learnFailed):
 		return a.askReading()
 	case k == "n" && (l.phase == learnReading || l.phase == learnDone || l.phase == learnFailed):
@@ -133,24 +141,35 @@ func (a App) updateLearn(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 // finishReading adds the marked words and records the reading as study.
 func (a *App) finishReading() {
 	l := &a.learn
-	var cards []domain.Card
-	for i, g := range l.reading.Glossary {
-		if l.marked[i] {
-			cards = append(cards, g.Card())
-		}
+	n, err := a.addGlossary(l.reading.Glossary, l.marked)
+	if err != nil {
+		l.err = err
+		return
 	}
-	if len(cards) > 0 && a.add != nil {
-		n, err := a.add(cards)
-		if err != nil {
-			l.err = err
-			return
-		}
-		l.added = n
-		a.addCards(cards)
-	}
+	l.added = n
 	minutes := min(int(a.now().Sub(l.shownAt)/time.Minute), maxReadingMinutes)
 	a.addToToday(domain.Day{Minutes: max(minutes, 0), Activities: []string{"Reading: " + l.reading.Title}})
 	l.phase, l.err = learnDone, nil
+}
+
+// addGlossary stores the glossary entries marked for study as new cards
+// and puts them in the deck. It returns how many words were new.
+func (a *App) addGlossary(glossary []teacher.Gloss, marked []bool) (int, error) {
+	var cards []domain.Card
+	for i, g := range glossary {
+		if marked[i] {
+			cards = append(cards, g.Card())
+		}
+	}
+	if len(cards) == 0 || a.add == nil {
+		return 0, nil
+	}
+	n, err := a.add(cards)
+	if err != nil {
+		return 0, err
+	}
+	a.addCards(cards)
+	return n, nil
 }
 
 // addCards puts cards the store just added into the deck, in both
@@ -182,11 +201,15 @@ func (a App) learnView(w, h int) string {
 		b.WriteString(r.title.Render("Learn") + "\n\n")
 		b.WriteString(r.secondary.Render("The AI teacher is off. Install Gentle Shell (the pi command) and see `teacher models`."))
 		return b.String()
+	case a.story.on:
+		return a.storyView(w, h)
 	case l.phase == learnIdle:
 		b.WriteString(r.title.Render("Learn") + "\n\n")
 		b.WriteString(r.target.Render("Read a short text written for you.") + "\n")
 		b.WriteString(r.secondary.Render(fmt.Sprintf("It uses the words you know and at most %d new ones,", teacher.MaxNewWords)) + "\n")
-		b.WriteString(r.secondary.Render("so you understand almost everything and learn from context."))
+		b.WriteString(r.secondary.Render("so you understand almost everything and learn from context.") + "\n\n")
+		b.WriteString(r.accent.Render("enter") + r.secondary.Render(" a short text   ") +
+			r.accent.Render("s") + r.secondary.Render(" a story in chapters, at your level"))
 		return b.String()
 	case l.phase == learnLoading:
 		b.WriteString(r.title.Render("Learn") + "\n\n")
@@ -244,14 +267,16 @@ func (a App) learnHints() []string {
 	switch {
 	case a.teacher == nil:
 		return []string{"tab screens", "esc home", "? help"}
+	case a.story.on:
+		return a.storyHints()
 	case a.learn.phase == learnIdle:
-		return []string{"enter read", "tab screens", "esc home", "? help"}
+		return []string{"enter read", "s story", "tab screens", "esc home", "? help"}
 	case a.learn.phase == learnLoading:
 		return []string{"tab screens", "esc home"}
 	case a.learn.phase == learnFailed:
 		return []string{"enter try again", "esc home"}
 	case a.learn.phase == learnDone:
-		return []string{"n new text", "tab screens", "esc home"}
+		return []string{"n new text", "s story", "tab screens", "esc home"}
 	}
-	return []string{"↑↓ move", "space mark", "a done", "n new text", "esc home"}
+	return []string{"↑↓ move", "space mark", "a done", "n new text", "s story", "esc home"}
 }

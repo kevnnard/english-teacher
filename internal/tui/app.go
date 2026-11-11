@@ -77,6 +77,9 @@ type Config struct {
 	RecordMistakes RecordMistakesFunc // logs major writing errors; nil logs nothing
 
 	SaveProfile SaveProfileFunc // stores the profile after a passed level check; nil saves nothing
+
+	Story     domain.Story  // the story being read in Learn; the zero story means none yet
+	SaveStory SaveStoryFunc // stores the story after each chapter and answer; nil saves nothing
 }
 
 // SaveProfileFunc stores the learner profile, like store.SaveProfile.
@@ -110,6 +113,8 @@ type App struct {
 	teacher        Teacher
 	add            AddFunc
 	learn          learnState
+	story          storyState    // the story in Learn, read chapter by chapter
+	saveStoryFn    SaveStoryFunc // nil saves nothing
 	write          writeState
 	talk           talkState
 	talkQuiet      bool // voice mode is off: Talk replies are not read aloud
@@ -176,6 +181,8 @@ func NewApp(cfg Config) App {
 		mistakeCounts:  maps.Clone(cfg.MistakeCounts),
 		recordMistakes: cfg.RecordMistakes,
 		saveProfile:    cfg.SaveProfile,
+		story:          storyState{saved: cfg.Story},
+		saveStoryFn:    cfg.SaveStory,
 		lastStudy:      cfg.Now(),
 		screen:         cfg.Start,
 		st:             newStyles(true), // until the terminal reports its background
@@ -206,6 +213,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.handleKey(msg)
 	case readingMsg:
 		return a.gotReading(msg), nil
+	case chapterMsg:
+		return a.gotChapter(msg), nil
 	case taskMsg:
 		return a.gotTask(msg), nil
 	case correctionMsg:

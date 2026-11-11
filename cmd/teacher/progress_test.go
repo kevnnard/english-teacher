@@ -372,3 +372,31 @@ func TestSetLevelRejectsAnUnknownLevel(t *testing.T) {
 		t.Errorf("profile changed from %+v to %+v", before, after)
 	}
 }
+
+func TestAppConfigLoadsAndSavesTheStory(t *testing.T) {
+	db := filepath.Join(t.TempDir(), "teacher.db")
+	st := openDB(t, db)
+	ctx := context.Background()
+	cfgPath := filepath.Join(t.TempDir(), "config.json")
+
+	cfg, err := appConfig(ctx, st, appOptions{dbPath: db, configPath: cfgPath})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Story != (domain.Story{}) {
+		t.Errorf("a new database has story %+v, want none", cfg.Story)
+	}
+	story := domain.Story{Title: "The lost key", Chapter: 1, Summary: "Ana loses her key.", Text: "Ana is a teacher."}
+	if story.ID, err = cfg.SaveStory(story); err != nil || story.ID == 0 {
+		t.Fatalf("SaveStory = %d, %v", story.ID, err)
+	}
+
+	// The next start of the app gets the same story back.
+	cfg, err = appConfig(ctx, st, appOptions{dbPath: db, configPath: cfgPath})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Story != story {
+		t.Errorf("story = %+v, want %+v", cfg.Story, story)
+	}
+}

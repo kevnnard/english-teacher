@@ -30,6 +30,7 @@
       │   Streak  0 days — review today to start one
       │   Today   0 of 20 min  ▱▱▱▱▱▱▱▱▱▱
       │   Week    Tu ○  We ○  Th ○  Fr ○  Sa ○  Su ○  Mo ○
+      │   Read    0 words this week
       │
  A1  ·  5 due                                   enter start · tab screens · : palette · ? help · q quit
 ```
@@ -41,7 +42,7 @@
 | | Question | Where you see it |
 |:-:|:--|:--|
 | 🔁 | **Which words do I need to review today?** | **Review**: spaced repetition (SM-2), recognize then produce |
-| 📖 | **Can I read something at my level?** | **Learn**: a short text with at most 3 new words |
+| 📖 | **Can I read something at my level?** | **Learn**: a short text with at most 3 new words, or a story in chapters (`s`) |
 | ✍️ | **What am I getting wrong when I write?** | **Write**: fix your own errors, then rewrite them from memory |
 | 💬 | **Can I hold a simple conversation?** | **Talk**: guided role-plays with gentle recasts |
 | ⏱️ | **Can I say it faster?** | **Fluency**: the same story in 4, 3 and 2 minutes |
@@ -183,6 +184,8 @@ say how to turn it on and the rest of the app works as before.
   know about 98% of the text and learn the rest from context. New words come
   marked; `space` marks any other, `a` adds them as cards and records the
   reading as study (at most 15 minutes).
+- **Stories** (`s` in Learn) are extensive reading: a story at your level in
+  5 chapters of about 250–400 words. See [Stories](#stories).
 - **Write** runs six steps, built on research on written corrective
   feedback (focused, direct feedback on a few errors, then revision):
   1. **Plan** — a short task with a hint in Spanish and 2–4 useful phrases,
@@ -395,6 +398,35 @@ check: not yet`). The writing and the quiz are logged like any other, so a
 weak one counts toward the next readiness too. `x` stops a check. The level
 never goes up any other way, except `teacher set level`. C2 is the top level.
 
+### Stories
+
+`s` on Learn switches between the short texts and a story; `s` again goes
+back, and both keep their place. A story has 5 chapters of 250–400 words at
+your level, with at least 95% words you know and at most 3 new ones per
+chapter at A1 (6 from A2), glossed and marked like a Learn text. Each
+chapter has three steps:
+
+1. **Read** — `↑` `↓` scroll the chapter, `P` reads it aloud; `enter` opens
+   the glossary.
+2. **Glossary** — mark words with `space` (`p` says the selected one); `a`
+   adds them as cards and shows the question.
+3. **Question** — one comprehension question; answer with `1`–`3`. The page
+   shows ✓ or ✗ with the right answer and a short why in Spanish.
+
+Answering records the chapter as study (`Reading: The lost key ch 2`, at most
+30 minutes) and adds its words to the words read. `n` asks for the next
+chapter: the teacher gets the title and a running summary of the story so
+far, so it continues the same story. After chapter 5, `n` starts a new one.
+
+The story is stored (title, chapter number, summary, the chapter's text,
+glossary and question), so it survives a restart: `s` opens the chapter you
+left, or the next one if you had answered it.
+
+**Words read this week** is shown on the story page and on Home (`Read 1250
+words this week`). It is summed from the words of every chapter you
+answered, as stored in the study log, over the calendar week: Monday to
+Sunday, starting again at 0 every Monday.
+
 ## Configuration and data
 
 Models live in `$XDG_CONFIG_HOME/english-teacher/config.json`
@@ -441,7 +473,7 @@ Press `p` to listen; `p` twice within 2 seconds plays the same text slower.
 | Screen | `p` says |
 |---|---|
 | Review | the English word; after `space`, the word and its example. A typed (Spanish → English) card only once checked, so it never gives the answer away |
-| Learn | the selected glossary word; `P` reads the whole text |
+| Learn | the selected glossary word; `P` reads the whole text or story chapter |
 | Write | the right version of the first error you did not fix (feedback), or of the one you just rewrote |
 | Quiz | the right answer, once you have answered |
 | Listen | the sentence, once checked (while typing: `ctrl+p`, `ctrl+s` slower) |
@@ -467,6 +499,7 @@ if unset). `--db path` before the command picks another file, e.g.
 - **Four strands** (Nation): meaning-focused input (Learn), meaning-focused output (Write, Talk), language-focused learning (Review, Quiz) and fluency (Fluency), in roughly equal time.
 - **Spaced repetition** (SM-2): each word comes back just before you would forget it, in both directions.
 - **Graded reading**: at about 98% known words you learn the rest from context; Learn adds at most 3 new ones.
+- **Extensive reading**: lots of easy, interesting text builds vocabulary and reading speed; stories in chapters keep you reading, and the weekly count of words read makes the volume visible.
 - **Focused written feedback**: a few major errors, direct and explained, work better than marking everything.
 - **Self-correction, then rewriting**: trying first makes you notice the gap; rewriting from memory is what makes the fix stick.
 - **Recasts**: in conversation the right form is woven into the reply, so you keep talking.
@@ -498,8 +531,11 @@ current screen.
 | | `↑` `↓` / `j` `k` | move through the glossary |
 | | `space` | mark or unmark a word to study |
 | | `a` | done: add the marked words as cards |
-| | `n` | a new text |
+| | `n` | a new text; in a story, after the answer, the next chapter |
 | | `p` / `P` | listen to the selected glossary word / read the whole text |
+| | `s` | a story in chapters (go on with it or start one); `s` again: short texts |
+| | `enter` | in a story: from the chapter to its glossary |
+| | `1`–`3` | in a story: answer the chapter's question |
 | Write | `enter` | get a task; while writing, a new line |
 | | `ctrl+d` | send your text to the teacher |
 | | `enter` | fixing or rewriting: submit (empty: I don't know) |

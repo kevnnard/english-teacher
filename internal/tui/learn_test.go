@@ -44,6 +44,23 @@ type fakeTeacher struct {
 	checkReading teacher.CheckReading // the answer of CheckReading
 	checkErr     error                // the error of CheckReading
 	checkCalls   []domain.Level       // the level of every CheckReading call
+
+	chapters   []teacher.StoryChapter // the answers of StoryChapter, in order; the last one repeats
+	storyErr   error                  // the error of StoryChapter
+	storyCalls []teacher.StorySoFar   // the story so far of every StoryChapter call
+}
+
+func (f *fakeTeacher) StoryChapter(_ context.Context, l domain.Level, known []string, so teacher.StorySoFar) (teacher.StoryChapter, error) {
+	f.level, f.known = l, known
+	f.storyCalls = append(f.storyCalls, so)
+	if f.storyErr != nil || len(f.chapters) == 0 {
+		return teacher.StoryChapter{}, f.storyErr
+	}
+	ch := f.chapters[0]
+	if len(f.chapters) > 1 {
+		f.chapters = f.chapters[1:]
+	}
+	return ch, nil
 }
 
 func (f *fakeTeacher) CheckReading(_ context.Context, l domain.Level) (teacher.CheckReading, error) {

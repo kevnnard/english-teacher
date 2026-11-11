@@ -41,6 +41,12 @@ func (a App) listenTexts() []string {
 	case Review:
 		return a.reviewListen()
 	case Learn:
+		if s := a.story; s.on {
+			if s.phase == storyGlossary && len(s.chapter.Glossary) > 0 {
+				return []string{s.chapter.Glossary[s.cursor].Word}
+			}
+			return nil
+		}
 		l := a.learn
 		if l.phase == learnReading && len(l.reading.Glossary) > 0 {
 			return []string{l.reading.Glossary[l.cursor].Word}
@@ -92,10 +98,19 @@ func (w writeState) rightVersion() string {
 	return ""
 }
 
-// readAllText is what P reads in Learn: the whole text, or "" when no
-// text is on screen.
+// readAllText is what P reads in Learn: the whole text or chapter, or ""
+// when none is on screen.
 func (a App) readAllText() string {
-	if a.screen == Learn && a.learn.phase == learnReading {
+	if a.screen != Learn {
+		return ""
+	}
+	if s := a.story; s.on {
+		if s.phase == storyReading || s.phase == storyGlossary {
+			return s.saved.Text
+		}
+		return ""
+	}
+	if a.learn.phase == learnReading {
 		return a.learn.reading.Text
 	}
 	return ""
