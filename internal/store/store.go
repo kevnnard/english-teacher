@@ -93,6 +93,15 @@ var migrations = []string{
 		wrong  TEXT    NOT NULL DEFAULT '',
 		right  TEXT    NOT NULL DEFAULT ''
 	);`,
+
+	// 5: the learner's results on each minimal-pair contrast, summed over
+	// every round, so the next round starts with the weakest ones.
+	`CREATE TABLE pair_stats (
+		contrast    TEXT    PRIMARY KEY,
+		attempts    INTEGER NOT NULL DEFAULT 0,
+		correct     INTEGER NOT NULL DEFAULT 0,
+		updated_at  TEXT    NOT NULL DEFAULT ''
+	);`,
 }
 
 // Store is a SQLite-backed card repository.

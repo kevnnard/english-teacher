@@ -89,8 +89,8 @@ func TestMigration4KeepsAV3Database(t *testing.T) {
 
 	var version int
 	must(t, s.db.QueryRow(`PRAGMA user_version`).Scan(&version))
-	if version != 4 || version != len(migrations) {
-		t.Errorf("user_version = %d, want 4 = len(migrations) %d", version, len(migrations))
+	if version < 4 || version != len(migrations) {
+		t.Errorf("user_version = %d, want len(migrations) %d", version, len(migrations))
 	}
 	cards, err := s.ListCards(ctx, domain.Recognition)
 	must(t, err)
