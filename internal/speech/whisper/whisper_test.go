@@ -128,6 +128,7 @@ func TestRecorderArgs(t *testing.T) {
 type fakeProcess struct {
 	wav        string
 	stubborn   bool   // ignores the interrupt, so only a kill ends it
+	unkillable bool   // ignores the kill too: Wait never returns
 	data       string // what an interrupt writes to the WAV
 	mu         sync.Mutex
 	events     []string
@@ -153,7 +154,13 @@ func (p *fakeProcess) Interrupt() error {
 	return nil
 }
 
-func (p *fakeProcess) Kill() error { p.log("kill"); p.end(); return nil }
+func (p *fakeProcess) Kill() error {
+	p.log("kill")
+	if !p.unkillable {
+		p.end()
+	}
+	return nil
+}
 
 func (p *fakeProcess) Wait() error { <-p.exit; return p.waitResult }
 
@@ -177,7 +184,7 @@ func (l *launches) launch(_ context.Context, name string, args []string) (Proces
 		return nil, l.err
 	}
 	l.name, l.args = name, args
-	l.proc = &fakeProcess{wav: args[len(args)-1], stubborn: l.tmpl.stubborn, data: l.tmpl.data, exit: make(chan struct{})}
+	l.proc = &fakeProcess{wav: args[len(args)-1], stubborn: l.tmpl.stubborn, unkillable: l.tmpl.unkillable, data: l.tmpl.data, exit: make(chan struct{})}
 	return l.proc, nil
 }
 
@@ -231,6 +238,46 @@ func TestRecordingStopKillsAStubbornRecorder(t *testing.T) {
 	if err == nil {
 		t.Error("an empty recording must be an error")
 	}
+	if entries, _ := os.ReadDir(r.TempDir); len(entries) != 0 {
+		t.Errorf("temp WAV left: %v", entries)
+	}
+}
+
+// endsWithin fails the test when f does not return within d.
+func endsWithin(t *testing.T, d time.Duration, what string, f func()) {
+	t.Helper()
+	done := make(chan struct{})
+	go func() { f(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(d):
+		t.Fatalf("%s hung", what)
+	}
+}
+
+func TestRecordingStopGivesUpOnARecorderThatSurvivesTheKill(t *testing.T) {
+	l := &launches{tmpl: fakeProcess{stubborn: true, unkillable: true}}
+	r := newFakeRecorder(t, l)
+	rec, _ := r.Start(context.Background())
+
+	var err error
+	endsWithin(t, time.Second, "Stop", func() { _, err = rec.Stop() })
+
+	if err == nil || !strings.Contains(err.Error(), "did not stop") {
+		t.Errorf("err = %v, want the recorder did not stop", err)
+	}
+	if entries, _ := os.ReadDir(r.TempDir); len(entries) != 0 {
+		t.Errorf("temp WAV left: %v", entries)
+	}
+}
+
+func TestRecordingCancelGivesUpOnARecorderThatSurvivesTheKill(t *testing.T) {
+	l := &launches{tmpl: fakeProcess{unkillable: true}}
+	r := newFakeRecorder(t, l)
+	rec, _ := r.Start(context.Background())
+
+	endsWithin(t, time.Second, "Cancel", rec.Cancel)
+
 	if entries, _ := os.ReadDir(r.TempDir); len(entries) != 0 {
 		t.Errorf("temp WAV left: %v", entries)
 	}

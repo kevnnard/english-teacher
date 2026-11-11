@@ -116,11 +116,10 @@ func (r *recording) Stop() (string, error) {
 			return
 		}
 		r.proc.Interrupt()
-		select {
-		case <-r.done:
-		case <-time.After(r.timeout):
-			r.proc.Kill()
-			<-r.done
+		if !r.waitFor(r.timeout) && !r.kill() {
+			os.Remove(r.wav)
+			err = errors.New("the recorder did not stop, even when killed")
+			return
 		}
 		if info, statErr := os.Stat(r.wav); statErr != nil || info.Size() <= wavHeader {
 			os.Remove(r.wav)
@@ -139,11 +138,28 @@ func (r *recording) Stop() (string, error) {
 func (r *recording) Cancel() {
 	r.once.Do(func() {
 		if !r.ended() {
-			r.proc.Kill()
+			r.kill()
 		}
-		<-r.done
 		os.Remove(r.wav)
 	})
+}
+
+// waitFor reports whether the program ends within d.
+func (r *recording) waitFor(d time.Duration) bool {
+	select {
+	case <-r.done:
+		return true
+	case <-time.After(d):
+		return false
+	}
+}
+
+// kill kills the program and reports whether it ended within the
+// timeout. A program that survives even that is left behind, so Stop
+// and Cancel never hang the app.
+func (r *recording) kill() bool {
+	r.proc.Kill()
+	return r.waitFor(r.timeout)
 }
 
 // execProcess is a started *exec.Cmd.
@@ -169,6 +185,7 @@ func execLaunch(ctx context.Context, name string, args []string) (Process, error
 	cmd := exec.CommandContext(ctx, name, args...)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
+	cmd.WaitDelay = time.Second // a killed recorder's children cannot keep Wait open
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
