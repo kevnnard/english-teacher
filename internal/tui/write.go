@@ -117,7 +117,7 @@ func (a App) askTask() (App, tea.Cmd) {
 		return a, nil
 	}
 	a.write = writeState{phase: writeTaskWait, req: a.write.req + 1}
-	req, tc, level, recent, focus := a.write.req, a.teacher, a.profile.Level, a.recentWords(), a.focus()
+	req, tc, level, recent, focus := a.write.req, a.teacher, a.studyLevel(), a.recentWords(), a.focus()
 	return a, func() tea.Msg {
 		t, err := tc.WritingTask(context.Background(), level, recent, focus)
 		return taskMsg{req: req, task: t, err: err}
@@ -158,7 +158,7 @@ func (a App) askCorrection() (App, tea.Cmd) {
 	}
 	a.write.req++
 	a.write.phase, a.write.err = writeChecking, nil
-	req, tc, level, task := a.write.req, a.teacher, a.profile.Level, a.write.task.Task
+	req, tc, level, task := a.write.req, a.teacher, a.studyLevel(), a.write.task.Task
 	return a, func() tea.Msg {
 		c, err := tc.Correct(context.Background(), level, task, text)
 		return correctionMsg{req: req, correction: c, err: err}
@@ -182,6 +182,7 @@ func (a App) gotCorrection(msg correctionMsg) App {
 		Minutes:    max(minutes, 0),
 		Activities: []string{fmt.Sprintf("Writing: %d/%d", msg.correction.Total(), teacher.MaxTotal)},
 	})
+	a.checkWritten(msg.correction.Total())
 
 	w.majors = nil
 	for _, f := range msg.correction.Majors() {

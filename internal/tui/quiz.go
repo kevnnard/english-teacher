@@ -134,8 +134,8 @@ func (a App) askGrammar() (App, tea.Cmd) {
 	q := &a.quiz
 	q.req++
 	q.phase, q.mode, q.err = quizLoading, quizGrammar, nil
-	q.topics = teacher.GrammarTopics(a.profile.Level, a.focus())
-	req, tc, level, focus := q.req, a.teacher, a.profile.Level, a.focus()
+	q.topics = teacher.GrammarTopics(a.studyLevel(), a.focus())
+	req, tc, level, focus := q.req, a.teacher, a.studyLevel(), a.focus()
 	return a, func() tea.Msg {
 		quiz, err := tc.GrammarQuiz(context.Background(), level, focus)
 		return quizGrammarMsg{req: req, quiz: quiz, err: err}
@@ -172,6 +172,9 @@ func (a *App) answer(ans quizAnswer) {
 	minutes := min(int(a.now().Sub(q.startedAt)/time.Minute), maxQuizMinutes)
 	activity := fmt.Sprintf("Quiz: %s %d/%d", q.mode, q.score(), len(q.questions))
 	a.addToToday(domain.Day{Minutes: max(minutes, 0), Activities: []string{activity}})
+	if q.mode == quizGrammar {
+		a.checkQuizzed(q.score(), len(q.questions))
+	}
 }
 
 func (a App) updateQuiz(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -219,6 +222,7 @@ func (a App) updateQuiz(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				q.phase = quizAsking
 			} else {
 				q.phase = quizResult
+				a.showCheckResult()
 			}
 		}
 	case quizResult:

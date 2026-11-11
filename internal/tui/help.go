@@ -31,6 +31,7 @@ var helpSections = []helpSection{
 	}},
 	{"Home", [][2]string{
 		{"enter", "start the preselected action"},
+		{"l", "your level and the level check"},
 	}},
 	{"Review", [][2]string{
 		{"space", "reveal the answer (English → Spanish)"},
@@ -107,6 +108,12 @@ var helpSections = []helpSection{
 		{"esc", "while recording: cancel it; else back to Home"},
 		{"r", "after the marks: try the same sentence again"},
 		{"n", "a new round from the result"},
+	}},
+	{"Level", [][2]string{
+		{"enter", "take the level check once every line has a ✓"},
+		{"1–4", "answer a question of the check's reading"},
+		{"enter", "go on to the writing, then the grammar quiz"},
+		{"x", "stop the level check; nothing is recorded"},
 	}},
 	{"Words", [][2]string{
 		{"/", "filter by word or meaning (enter keep · esc clear)"},

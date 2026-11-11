@@ -50,6 +50,7 @@
 | 👂 | **Can I hear ship from sheep?** | **Pairs**: minimal pairs for Spanish speakers, weakest sounds first (needs audio) |
 | 🗣️ | **Do people understand what I say?** | **Speak**: say your own sentences; whisper marks each word it understood (needs audio and whisper) |
 | 🔥 | **Am I keeping it up?** | **Home** and **Stats**: streak, daily goal and study log |
+| 🎯 | **Am I ready for the next level?** | **Level** (`l` on Home): each criterion from your real data, then a short level check |
 
 ## Install
 
@@ -76,6 +77,7 @@ the grammar quiz need [the AI teacher](#the-ai-teacher).
 ```bash
 teacher set name Ana         # Home greets you by name
 teacher set goal 20          # daily goal in minutes (default 20)
+teacher set level A1         # your CEFR level; its start date becomes today
 teacher import ./progress    # optional: bring in an existing vocabulary bank
 teacher                      # open the app on Home
 ```
@@ -92,6 +94,7 @@ teacher [--db path] import <vocabulary-bank.md>  import a vocabulary bank
 teacher [--db path] import <progress-folder>     import the bank, level.md and history
 teacher [--db path] set name <name>              set your name
 teacher [--db path] set goal <minutes>           set the daily goal (default 20)
+teacher [--db path] set level <A1..C2>           set your level; its start date becomes today
 teacher models                                   list the AI model of each capability
 teacher set model <capability> <provider/model>  reading, writing, conversation or quiz
 teacher setup voice                              download the default voice for speech
@@ -115,7 +118,7 @@ three times, faster each time), **Quiz** (vocabulary from your cards or
 grammar from the AI), **Listen** (dictation of your own sentences, with
 audio), **Pairs** (minimal pairs like ship / sheep, with audio), **Speak**
 (say a sentence and see which words whisper understood, with audio and
-whisper), **Words** (every word with its status) and **Stats**. Every screen is a notebook page: the top bar shows the date,
+whisper), **Words** (every word with its status), **Stats** and **Level** (`l` on Home: readiness for the next level and the level check). Every screen is a notebook page: the top bar shows the date,
 the page ("Page 3 of 26" during a review) and the screen tabs (on 80
 columns the page name, which the active tab already shows, and then the
 date make room for them, down to the weekday); a margin line
@@ -361,6 +364,37 @@ words to practise. The round counts as study (`Speak: 6/8`, at most 10
 minutes) when it ends. The words to practise are not stored: only the
 activity is. Without audio or whisper, the page says how to set them up.
 
+### Level
+
+Home shows one line about the next CEFR level, like `A1 → A2 · 3 of 6
+ready`; `l` opens the Level page, which lists each criterion with ✓ or ✗,
+your value, the target and, when it is not met, one short tip. The values
+come from your real data:
+
+| Criterion | Target |
+|---|---|
+| Known words (interval ≥ 21 days) | A1 500 · A2 1000 · B1 2000 · B2 3500 · C1 5000 |
+| Writing | average of the last 5 Write rubrics ≥ 32/40 |
+| Grammar quiz | ≥ 80% right over the last 3 grammar quizzes |
+| Listen | ≥ 85% right over the last 3 dictations |
+| Pairs | ≥ 85% right over the last 3 rounds |
+| Time at level | ≥ 21 days since the level started |
+
+Scores are read from the study log (`Writing: 33/40`, `Quiz: grammar 6/8`,
+`Listen: 9/10`, `Pairs: 18/20`); a criterion with fewer rounds than it needs
+is not met, and one with nothing yet says "no data yet". The log keeps each
+distinct activity once per day, so two equal scores on one day count once.
+
+When every line has a ✓, Home says "Ready for A2" and `enter` on the Level
+page starts the level check, all at the next level: a short reading with 3
+questions on the Level page, one text on Write scored with its rubric, and a
+grammar quiz on Quiz. You pass with reading ≥ 2/3, writing ≥ 28/40 and quiz
+≥ 70%: your level goes up and its start date becomes today (`Level check:
+passed A2`). Otherwise the page says which part was below its mark (`Level
+check: not yet`). The writing and the quiz are logged like any other, so a
+weak one counts toward the next readiness too. `x` stops a check. The level
+never goes up any other way, except `teacher set level`. C2 is the top level.
+
 ## Configuration and data
 
 Models live in `$XDG_CONFIG_HOME/english-teacher/config.json`
@@ -453,6 +487,7 @@ current screen.
 | | `q` | quit on Home, back to Home elsewhere |
 | | `ctrl+c` | quit |
 | Home | `enter` | start the preselected action |
+| | `l` | your level and the level check |
 | Review | `space` | reveal the answer (English → Spanish) |
 | | `1`–`4` | grade your recall: 1 again · 2 hard · 3 good · 4 easy |
 | | `enter` | check a typed answer (Spanish → English) |
@@ -510,6 +545,9 @@ current screen.
 | | `esc` | while recording: cancel it; else back to Home (the round stays) |
 | | `r` | after the marks: try the same sentence again |
 | | `n` | a new round from the result |
+| Level | `enter` | take the level check once every line has a ✓; then go on to each part |
+| | `1`–`4` | answer a question of the check's reading |
+| | `x` | stop the level check; nothing is recorded |
 | Words | `/` | filter by word or meaning (`enter` keep · `esc` clear) |
 | | `↑` `↓` / `j` `k` | scroll |
 

@@ -50,7 +50,8 @@ func (a App) homeView() string {
 	b.WriteString(r.label.Render(fmt.Sprintf("%-8s", "Words")) + a.statusCounts() + "\n\n")
 	b.WriteString(r.label.Render(fmt.Sprintf("%-8s", "Streak")) + a.streakLine() + "\n")
 	b.WriteString(r.label.Render(fmt.Sprintf("%-8s", "Today")) + a.goalLine() + "\n")
-	b.WriteString(r.label.Render(fmt.Sprintf("%-8s", "Week")) + a.weekRow())
+	b.WriteString(r.label.Render(fmt.Sprintf("%-8s", "Week")) + a.weekRow() + "\n\n")
+	b.WriteString(r.label.Render(fmt.Sprintf("%-8s", "Level")) + a.levelLine())
 	return b.String()
 }
 

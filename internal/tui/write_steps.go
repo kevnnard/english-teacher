@@ -49,7 +49,7 @@ func (a App) submitAttempt() (App, tea.Cmd) {
 	}
 	w.req++
 	w.phase = writeJudging
-	req, tc, level := w.req, a.teacher, a.profile.Level
+	req, tc, level := w.req, a.teacher, a.studyLevel()
 	return a, func() tea.Msg {
 		v, err := tc.Judge(context.Background(), level, attempts)
 		return judgeMsg{req: req, verdicts: v, err: err}

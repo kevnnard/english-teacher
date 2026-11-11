@@ -8,6 +8,7 @@
 //	teacher [--db path] import <progress-folder>         import bank, level and history
 //	teacher [--db path] set name <name>                  set the learner's name
 //	teacher [--db path] set goal <minutes>               set the daily goal
+//	teacher [--db path] set level <A1|A2|B1|B2|C1|C2>    set the level and restart its clock
 //	teacher [--config path] models                       list the model of each capability
 //	teacher [--config path] set model <capability> <m>   set the model of one capability
 //	teacher setup voice                                  download the default voice for speech
@@ -44,6 +45,7 @@ const usage = `usage:
   teacher [--db path] import <progress-folder>     import the bank, level.md and history
   teacher [--db path] set name <name>              set your name
   teacher [--db path] set goal <minutes>           set the daily goal (default 20)
+  teacher [--db path] set level <A1..C2>           set your level; its start date becomes today
   teacher models                                   list the AI model of each capability
   teacher set model <capability> <provider/model>  reading, writing, conversation or quiz
   teacher setup voice                              download the default voice for speech
@@ -288,9 +290,13 @@ func importHistory(ctx context.Context, st *store.Store, folder string, stdout i
 // maxGoalMinutes caps the daily goal at four hours.
 const maxGoalMinutes = 240
 
-// runSet changes one profile setting: "name <name...>" or "goal <minutes>".
-// Input is validated before the database is opened, so a bad value
-// changes nothing.
+// now is the clock of the commands; tests replace it.
+var now = time.Now
+
+// runSet changes one profile setting: "name <name...>", "goal <minutes>"
+// or "level <A1..C2>". Setting the level also restarts the time at that
+// level from today, as passing a level check does. Input is validated
+// before the database is opened, so a bad value changes nothing.
 func runSet(dbPath string, args []string, stdout io.Writer) error {
 	if len(args) < 2 {
 		return errors.New(usage)
@@ -312,8 +318,16 @@ func runSet(dbPath string, args []string, stdout io.Writer) error {
 		}
 		apply = func(p *domain.Profile) { p.DailyGoalMinutes = n }
 		done = fmt.Sprintf("Daily goal set to %d min", n)
+	case "level":
+		level, err := domain.ParseLevel(value)
+		if err != nil {
+			return err
+		}
+		today := domain.DateOf(now())
+		apply = func(p *domain.Profile) { p.Level, p.Started = level, today }
+		done = fmt.Sprintf("Level set to %s (%s), started %s", level, level.Name(), today)
 	default:
-		return fmt.Errorf("unknown setting %q (want name or goal)\n%s", key, usage)
+		return fmt.Errorf("unknown setting %q (want name, goal or level)\n%s", key, usage)
 	}
 
 	st, err := openStore(dbPath)
@@ -358,7 +372,8 @@ func loadCards(ctx context.Context, st *store.Store) ([]domain.Card, error) {
 }
 
 // appConfig loads what the app needs from the store and wires saving,
-// study recording, the writing error log and the pair stats back to it.
+// study recording, the writing error log, the pair stats and the profile
+// (raised by a passed level check) back to it.
 func appConfig(ctx context.Context, st *store.Store, opts appOptions) (tui.Config, error) {
 	cards, err := loadCards(ctx, st)
 	if err != nil {
@@ -403,6 +418,8 @@ func appConfig(ctx context.Context, st *store.Store, opts appOptions) (tui.Confi
 
 		MistakeCounts:  mistakes,
 		RecordMistakes: func(m []domain.Mistake) error { return st.RecordMistakes(ctx, m) },
+
+		SaveProfile: func(p domain.Profile) error { return st.SaveProfile(ctx, p) },
 
 		PairStats: pairStats,
 		RecordPairs: func(r []domain.PairStat) error {

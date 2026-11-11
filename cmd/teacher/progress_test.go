@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/kevnnard/english-teacher/internal/domain"
 	"github.com/kevnnard/english-teacher/internal/store"
@@ -207,6 +208,16 @@ func TestAppConfigLoadsProfileDaysAndRecords(t *testing.T) {
 	if len(days) != 3 || days[2].Reviews != 1 {
 		t.Errorf("Record did not reach the store: %+v", days)
 	}
+
+	// A passed level check saves the raised level through SaveProfile.
+	raised := cfg.Profile
+	raised.Level, raised.Started = domain.A2, nov9
+	if err := cfg.SaveProfile(raised); err != nil {
+		t.Fatal(err)
+	}
+	if p, _ := st.Profile(ctx); p != raised {
+		t.Errorf("SaveProfile did not reach the store: %+v", p)
+	}
 }
 
 func TestReimportLevelWithoutStartClearsTheStart(t *testing.T) {
@@ -322,5 +333,42 @@ func TestAppConfigLoadsAndRecordsPairStatsAndVoices(t *testing.T) {
 	stats, _ := st.PairStats(ctx)
 	if stats["b-v"] != (domain.PairStat{Contrast: "b-v", Attempts: 5, Correct: 3}) {
 		t.Errorf("RecordPairs did not reach the store: %v", stats)
+	}
+}
+
+func TestSetLevelResetsTheStartDate(t *testing.T) {
+	db := filepath.Join(t.TempDir(), "teacher.db")
+	orig := now
+	now = func() time.Time { return time.Date(2026, 11, 10, 9, 0, 0, 0, time.Local) }
+	t.Cleanup(func() { now = orig })
+
+	var out bytes.Buffer
+	if err := run([]string{"--db", db, "set", "level", "b1"}, &out); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := out.String(), "Level set to B1 (Intermediate), started 2026-11-10\n"; got != want {
+		t.Errorf("output = %q, want %q", got, want)
+	}
+	p, _ := openDB(t, db).Profile(context.Background())
+	if p.Level != domain.B1 || p.Started != (domain.Date{Year: 2026, Month: 11, Day: 10}) {
+		t.Errorf("profile = %+v", p)
+	}
+}
+
+func TestSetLevelRejectsAnUnknownLevel(t *testing.T) {
+	db := filepath.Join(t.TempDir(), "teacher.db")
+	if err := run([]string{"--db", db, "set", "level", "a2"}, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	before, _ := openDB(t, db).Profile(context.Background())
+
+	err := run([]string{"--db", db, "set", "level", "Z9"}, &bytes.Buffer{})
+	want := `level "Z9" is not a CEFR level; use one of A1, A2, B1, B2, C1, C2`
+	if err == nil || err.Error() != want {
+		t.Errorf("err = %v, want %q", err, want)
+	}
+	after, _ := openDB(t, db).Profile(context.Background())
+	if after != before {
+		t.Errorf("profile changed from %+v to %+v", before, after)
 	}
 }

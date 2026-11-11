@@ -23,6 +23,7 @@ type Teacher interface {
 	RolePlay(ctx context.Context, level domain.Level, s teacher.Scenario, lines []teacher.Line) (teacher.Turn, error)
 	RolePlayFeedback(ctx context.Context, level domain.Level, s teacher.Scenario, lines []teacher.Line) (teacher.Feedback, error)
 	GrammarQuiz(ctx context.Context, level domain.Level, focus []string) (teacher.GrammarQuiz, error)
+	CheckReading(ctx context.Context, level domain.Level) (teacher.CheckReading, error)
 }
 
 // AddFunc stores new cards and returns how many words were new.

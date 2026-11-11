@@ -127,6 +127,8 @@ func (a App) screenView(w, h int) string {
 		return a.pairsView(w)
 	case Speak:
 		return a.speakView(w)
+	case Level:
+		return a.levelView(w)
 	default:
 		return a.st.main.title.Render(a.screen.String())
 	}
@@ -254,6 +256,8 @@ func (a App) hints() []string {
 		return a.pairsHints() // its own p and s say the word
 	case Speak:
 		return a.speakHints() // its own p and s say the sentence
+	case Level:
+		return a.levelHints()
 	case Words:
 		if a.words.filtering {
 			return []string{"type to filter", "enter keep", "esc clear"}

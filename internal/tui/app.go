@@ -39,13 +39,14 @@ const (
 	Speak
 	Words
 	Stats
+	Level // the readiness for the next level and the level check; opened with l on Home, not a tab
 )
 
 // screens is the order of the tabs and of tab / shift+tab.
 var screens = []Screen{Home, Review, Learn, Write, Talk, Fluency, Quiz, Listen, Pairs, Speak, Words, Stats}
 
 func (s Screen) String() string {
-	return [...]string{"Home", "Review", "Learn", "Write", "Talk", "Fluency", "Quiz", "Listen", "Pairs", "Speak", "Words", "Stats"}[s]
+	return [...]string{"Home", "Review", "Learn", "Write", "Talk", "Fluency", "Quiz", "Listen", "Pairs", "Speak", "Words", "Stats", "Level"}[s]
 }
 
 // Config is what the app needs from the outside world.
@@ -74,7 +75,12 @@ type Config struct {
 
 	MistakeCounts  map[string]int     // logged major writing errors per kind
 	RecordMistakes RecordMistakesFunc // logs major writing errors; nil logs nothing
+
+	SaveProfile SaveProfileFunc // stores the profile after a passed level check; nil saves nothing
 }
+
+// SaveProfileFunc stores the learner profile, like store.SaveProfile.
+type SaveProfileFunc func(domain.Profile) error
 
 // RecordMistakesFunc logs the major errors of one text, like
 // store.RecordMistakes.
@@ -93,11 +99,13 @@ type App struct {
 	save  SaveFunc
 	now   func() time.Time
 
-	profile   domain.Profile
-	days      []domain.Day
-	record    RecordFunc
-	lastStudy time.Time     // when the learner last graded a card
-	studied   time.Duration // study time not yet recorded as a whole minute
+	profile     domain.Profile
+	saveProfile SaveProfileFunc
+	check       levelCheckState // the level check, when one is running or just ended
+	days        []domain.Day
+	record      RecordFunc
+	lastStudy   time.Time     // when the learner last graded a card
+	studied     time.Duration // study time not yet recorded as a whole minute
 
 	teacher        Teacher
 	add            AddFunc
@@ -167,6 +175,7 @@ func NewApp(cfg Config) App {
 
 		mistakeCounts:  maps.Clone(cfg.MistakeCounts),
 		recordMistakes: cfg.RecordMistakes,
+		saveProfile:    cfg.SaveProfile,
 		lastStudy:      cfg.Now(),
 		screen:         cfg.Start,
 		st:             newStyles(true), // until the terminal reports its background
@@ -211,6 +220,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.gotFluencyTick(msg)
 	case quizGrammarMsg:
 		return a.gotGrammar(msg), nil
+	case checkReadingMsg:
+		return a.gotCheckReading(msg), nil
 	case spokenMsg:
 		return a.gotSpoken(msg), nil
 	case transcribedMsg:
@@ -303,9 +314,14 @@ func (a App) typing() bool {
 func (a App) updateScreen(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch a.screen {
 	case Home:
-		if msg.String() == "enter" {
+		switch msg.String() {
+		case "enter":
 			a.screen = a.homeAction().target
+		case "l":
+			a.screen = Level
 		}
+	case Level:
+		return a.updateLevel(msg)
 	case Review:
 		return a.updateReview(msg)
 	case Words:

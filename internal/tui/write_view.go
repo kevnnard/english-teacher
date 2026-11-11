@@ -16,7 +16,11 @@ func (a App) writeView(w, h int) string {
 	s := a.write
 	width := max(w, 20)
 	var b strings.Builder
-	b.WriteString(r.title.Render("Write") + "\n\n")
+	title := "Write"
+	if a.check.stage == checkWriting {
+		title = "Write · level check " + a.check.next.String()
+	}
+	b.WriteString(r.title.Render(title) + "\n\n")
 	switch {
 	case a.teacher == nil:
 		b.WriteString(r.secondary.Render("The AI teacher is off. Install Gentle Shell (the pi command) and see `teacher models`."))

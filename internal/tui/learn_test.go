@@ -40,6 +40,16 @@ type fakeTeacher struct {
 	grammar      teacher.GrammarQuiz // the answer of GrammarQuiz
 	grammarErr   error               // the error of GrammarQuiz
 	grammarCalls [][]string          // the focus of every GrammarQuiz call
+
+	checkReading teacher.CheckReading // the answer of CheckReading
+	checkErr     error                // the error of CheckReading
+	checkCalls   []domain.Level       // the level of every CheckReading call
+}
+
+func (f *fakeTeacher) CheckReading(_ context.Context, l domain.Level) (teacher.CheckReading, error) {
+	f.level = l
+	f.checkCalls = append(f.checkCalls, l)
+	return f.checkReading, f.checkErr
 }
 
 func (f *fakeTeacher) GrammarQuiz(_ context.Context, l domain.Level, focus []string) (teacher.GrammarQuiz, error) {

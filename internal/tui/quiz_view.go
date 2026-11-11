@@ -25,6 +25,9 @@ func (a App) quizView(w int) string {
 
 // quizTitle is the title of a quiz page, like "Quiz · Grammar".
 func (a App) quizTitle() string {
+	if a.quiz.mode == quizGrammar && a.check.stage == checkQuiz {
+		return "Quiz · level check " + a.check.next.String()
+	}
 	if a.quiz.mode == quizGrammar {
 		return "Quiz · Grammar"
 	}
@@ -52,7 +55,7 @@ func (a App) quizPickerView(width int) string {
 	}
 	about := "Choose the word or type it, from its Spanish meaning."
 	if q.cursor == quizGrammar {
-		about = "Practices: " + strings.Join(teacher.GrammarTopics(a.profile.Level, a.focus()), ", ")
+		about = "Practices: " + strings.Join(teacher.GrammarTopics(a.studyLevel(), a.focus()), ", ")
 	}
 	b.WriteString("\n" + r.label.Render(ansi.Wordwrap(about, width, "")))
 	if q.notice != "" {
