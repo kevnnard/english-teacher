@@ -40,6 +40,12 @@ func (d Date) AddDays(n int) Date {
 	return DateOf(d.time().AddDate(0, 0, n))
 }
 
+// DaysSince is how many days have passed from from to d: 0 on the same
+// day, negative when from is after d.
+func (d Date) DaysSince(from Date) int {
+	return int(d.time().Sub(from.time()).Hours() / 24)
+}
+
 // Before reports whether d comes before o.
 func (d Date) Before(o Date) bool {
 	return d.time().Before(o.time())
@@ -85,6 +91,9 @@ const (
 	C2 Level = "C2"
 )
 
+// Levels lists the CEFR levels from the lowest to the highest.
+var Levels = []Level{A1, A2, B1, B2, C1, C2}
+
 var levelNames = map[Level]string{
 	A1: "Beginner", A2: "Elementary", B1: "Intermediate",
 	B2: "Upper Intermediate", C1: "Advanced", C2: "Proficiency",
@@ -94,9 +103,29 @@ var levelNames = map[Level]string{
 func ParseLevel(s string) (Level, error) {
 	l := Level(strings.ToUpper(strings.TrimSpace(s)))
 	if _, ok := levelNames[l]; !ok {
-		return "", fmt.Errorf("level %q is not a CEFR level (A1–C2)", s)
+		return "", fmt.Errorf("level %q is not a CEFR level; use one of %s", s, levelList())
 	}
 	return l, nil
+}
+
+// levelList is "A1, A2, B1, B2, C1, C2", for messages.
+func levelList() string {
+	names := make([]string, len(Levels))
+	for i, l := range Levels {
+		names[i] = string(l)
+	}
+	return strings.Join(names, ", ")
+}
+
+// Next is the level after l. C2, the top level, has no next level, and
+// neither has an unknown level: both return ok false.
+func (l Level) Next() (next Level, ok bool) {
+	for i, x := range Levels[:len(Levels)-1] {
+		if x == l {
+			return Levels[i+1], true
+		}
+	}
+	return "", false
 }
 
 func (l Level) String() string { return string(l) }

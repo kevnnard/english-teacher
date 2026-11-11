@@ -1,4 +1,5 @@
-// Package progress computes the learner's streak and week from study days.
+// Package progress computes the learner's streak, week and readiness for
+// the next CEFR level from study days.
 // It is pure: no I/O and no clock; today is always passed in.
 package progress
 

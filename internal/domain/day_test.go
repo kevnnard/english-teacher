@@ -98,3 +98,45 @@ func TestDateWeekday(t *testing.T) {
 		t.Errorf("Weekday = %v, want Monday", got)
 	}
 }
+
+func TestParseLevelErrorListsTheLevels(t *testing.T) {
+	_, err := ParseLevel("Z9")
+	want := `level "Z9" is not a CEFR level; use one of A1, A2, B1, B2, C1, C2`
+	if err == nil || err.Error() != want {
+		t.Errorf("err = %v, want %q", err, want)
+	}
+}
+
+func TestLevelNext(t *testing.T) {
+	tests := []struct {
+		level Level
+		next  Level
+		ok    bool
+	}{
+		{A1, A2, true}, {A2, B1, true}, {B1, B2, true}, {B2, C1, true}, {C1, C2, true},
+		{C2, "", false}, {"", "", false},
+	}
+	for _, tt := range tests {
+		if next, ok := tt.level.Next(); next != tt.next || ok != tt.ok {
+			t.Errorf("%q.Next() = %q, %v; want %q, %v", tt.level, next, ok, tt.next, tt.ok)
+		}
+	}
+}
+
+func TestDateDaysSince(t *testing.T) {
+	d := Date{2026, time.November, 9}
+	tests := []struct {
+		from Date
+		want int
+	}{
+		{d, 0},
+		{Date{2026, time.October, 19}, 21},
+		{Date{2025, time.November, 9}, 365},
+		{Date{2026, time.November, 10}, -1},
+	}
+	for _, tt := range tests {
+		if got := d.DaysSince(tt.from); got != tt.want {
+			t.Errorf("%v.DaysSince(%v) = %d, want %d", d, tt.from, got, tt.want)
+		}
+	}
+}
