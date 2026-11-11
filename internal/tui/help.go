@@ -60,9 +60,11 @@ var helpSections = []helpSection{
 	}},
 	{"Talk", [][2]string{
 		{"↑ ↓ / j k", "choose a situation"},
-		{"enter", "start it; while talking, send your line"},
+		{"enter", "start it; send your line (again after a failed answer)"},
+		{"ctrl+r", "say your line; ctrl+r stops, esc cancels; then edit"},
+		{"ctrl+p", "hear the last reply again; twice quickly: slower"},
+		{"ctrl+t", "voice mode on / off: replies read aloud"},
 		{"ctrl+d", "finish the role-play early and get feedback"},
-		{"enter", "after a failed answer: send the same line again"},
 		{"s", "save the error cards again if saving failed"},
 		{"n", "a new role-play from the feedback"},
 		{"esc", "back to Home; the conversation stays"},

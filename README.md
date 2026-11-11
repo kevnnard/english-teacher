@@ -229,6 +229,15 @@ say how to turn it on and the rest of the app works as before.
   when the feedback arrives; leaving before that records nothing. `n` picks
   a new role-play; `esc` goes Home and keeps the conversation.
 
+  **By voice** (with [audio](#audio-optional)): `ctrl+r` records your line
+  (`ctrl+r` again stops, `esc` cancels) and whisper writes what it heard
+  into the input, after anything you typed. It is never sent by itself:
+  read it, fix what whisper got wrong and press `enter`. The tutor's
+  opening and replies are read aloud as they arrive; `ctrl+t` turns this
+  voice mode off (or on again) until you quit, and `ctrl+p` says the last
+  reply again (twice quickly: slower). The `↳` correction is only shown,
+  never read aloud. The voice keys are ctrl keys because every letter types.
+
 ### Fluency
 
 Fluency is the written 4/3/2 exercise: tell the same story three times, in
@@ -373,7 +382,7 @@ teacher setup voice         # downloads en_US-lessac-medium (about 60 MB)
 teacher doctor              # shows what is found: pi, piper, the voice, a player, whisper, a recorder
 ```
 
-Speak also listens to you, with [whisper.cpp](https://github.com/ggml-org/whisper.cpp),
+Speak and Talk also listen to you, with [whisper.cpp](https://github.com/ggml-org/whisper.cpp),
 a local speech-to-text program, and a recorder:
 
 ```sh
@@ -404,6 +413,7 @@ Press `p` to listen; `p` twice within 2 seconds plays the same text slower.
 | Listen | the sentence, once checked (while typing: `ctrl+p`, `ctrl+s` slower) |
 | Pairs | the word played (`s` slower); after the answer, `1` and `2` play each word |
 | Speak | the sentence (`s` slower) |
+| Talk | the tutor's lines, on their own in voice mode (`ctrl+t` on / off); `ctrl+p` the last one again. `ctrl+r` records your line into the input |
 
 While you type, `p` is a letter. Without audio, `p` shows
 "Audio is off: run `teacher doctor`" and nothing else changes.
@@ -465,6 +475,9 @@ current screen.
 | | `esc` | back to Home; your work stays |
 | Talk | `↑` `↓` / `j` `k` | choose a situation |
 | | `enter` | start it; while talking, send your line (after a failed answer, the same line again) |
+| | `ctrl+r` | say your line: `ctrl+r` again stops, `esc` cancels; what whisper heard goes into the input to edit and send |
+| | `ctrl+p` | hear the last reply again (twice quickly: slower) |
+| | `ctrl+t` | voice mode on / off: replies read aloud (on when audio is set up) |
 | | `ctrl+d` | finish the role-play early and get feedback |
 | | `s` | save the error cards again if saving failed |
 | | `n` | a new role-play from the feedback |

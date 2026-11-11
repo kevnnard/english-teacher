@@ -75,12 +75,20 @@ func (a App) chatView(width, h int) string {
 	case talkSummaryFail:
 		foot = r.danger.Render(ansi.Wordwrap("✗ Could not get your feedback: "+t.err.Error(), width, "")) + "\n" +
 			r.label.Render("Press enter to try again.")
+	case talkRecording:
+		foot = r.danger.Render("● Recording… ctrl+r to stop") + r.label.Render(" · esc cancel")
+	case talkListening:
+		foot = r.accent.Render("Listening…")
 	default:
 		if t.err != nil {
 			foot = r.danger.Render(ansi.Wordwrap("✗ Could not get an answer: "+t.err.Error(), width, "")) + "\n" +
 				r.label.Render("Your line is still here; press enter to try again.") + "\n"
 		}
 		foot += r.secondary.Render("› ") + t.input + r.accent.Render("▏")
+	}
+
+	if a.listen.notice != "" {
+		foot += "\n" // the notice takes the last row; keep the input above it
 	}
 
 	// Keep the newest lines when the transcript is taller than the page.
@@ -184,11 +192,15 @@ func (a App) talkHints() []string {
 	case talkPick:
 		return []string{"↑↓ choose", "enter start", "tab screens", "esc home"}
 	case talkChatting:
-		hints := []string{"type your line", "enter send"}
+		hints := append([]string{"type your line", "enter send"}, a.talkVoiceHints()...)
 		if t.learnerTurns() > 0 {
 			hints = append(hints, "ctrl+d finish")
 		}
 		return append(hints, "esc home")
+	case talkRecording:
+		return []string{"ctrl+r stop", "esc cancel"}
+	case talkListening:
+		return []string{"esc cancel"}
 	case talkSummaryFail:
 		return []string{"enter try again", "esc home"}
 	case talkSummary:

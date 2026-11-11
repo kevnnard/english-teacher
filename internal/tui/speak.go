@@ -38,6 +38,13 @@ const whisperHelp = "Speak needs whisper to hear you. Install whisper.cpp with `
 	"(or see the whisper.cpp README), then run `teacher setup whisper` to download its model. " +
 	"Recording needs pw-record (pipewire) or arecord (alsa-utils). Run `teacher doctor` to check."
 
+// whisperOffNotice is whisperHelp in one line, for a screen where speaking
+// is only one way to answer, like Talk.
+const whisperOffNotice = "Speaking is off: `brew install whisper-cpp`, then `teacher setup whisper`"
+
+// heardNothing is what the app says when whisper wrote nothing down.
+const heardNothing = "Whisper heard nothing. Is your microphone plugged in and turned up?"
+
 // speakPhase is where the learner is in a round.
 type speakPhase int
 
@@ -109,11 +116,27 @@ func (s speakState) score() int {
 }
 
 // transcribedMsg is what whisper heard in recording try; err is why the
-// recording or the transcription failed.
+// recording or the transcription failed. talk is set when the recording
+// was a Talk line rather than a Speak sentence.
 type transcribedMsg struct {
 	try  int
+	talk bool
 	text string
 	err  error
+}
+
+// transcribe returns a command that stops rec and transcribes it with tr.
+// Both take a while, so they run outside the UI.
+func transcribe(rec speech.Recording, tr speech.Transcriber, msg transcribedMsg) tea.Cmd {
+	return func() tea.Msg {
+		wav, err := rec.Stop()
+		if err != nil {
+			msg.err = err
+			return msg
+		}
+		msg.text, msg.err = tr.Transcribe(context.Background(), wav)
+		return msg
+	}
 }
 
 // speakOptions are the sentences the learner's cards give now, with the
@@ -176,16 +199,9 @@ func (a *App) startRecording() {
 // both take a while, and the page says "Listening…" meanwhile.
 func (a *App) stopRecording() tea.Cmd {
 	s := &a.speaking
-	rec, tr, try := s.recording, a.transcriber, s.try
+	rec := s.recording
 	s.recording, s.phase = nil, speakListening
-	return func() tea.Msg {
-		wav, err := rec.Stop()
-		if err != nil {
-			return transcribedMsg{try: try, err: err}
-		}
-		text, err := tr.Transcribe(context.Background(), wav)
-		return transcribedMsg{try: try, text: text, err: err}
-	}
+	return transcribe(rec, a.transcriber, transcribedMsg{try: s.try})
 }
 
 // cancelRecording throws the recording away; the sentence waits for

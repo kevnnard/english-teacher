@@ -104,6 +104,7 @@ type App struct {
 	learn          learnState
 	write          writeState
 	talk           talkState
+	talkQuiet      bool // voice mode is off: Talk replies are not read aloud
 	fluency        fluencyState
 	quiz           quizState
 	mistakeCounts  map[string]int // major writing errors per kind, as stored
@@ -213,6 +214,9 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case spokenMsg:
 		return a.gotSpoken(msg), nil
 	case transcribedMsg:
+		if msg.talk {
+			return a.gotTalkTranscript(msg), nil
+		}
 		return a.gotTranscript(msg), nil
 	}
 	return a, nil
@@ -225,8 +229,11 @@ func (a App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	a.listen.notice = "" // an audio notice lasts until the next key
 	switch {
 	case k == "ctrl+c":
-		if rec := a.speaking.recording; rec != nil {
-			rec.Cancel() // a recorder must not outlive the app
+		// A recorder must not outlive the app.
+		for _, rec := range []speech.Recording{a.speaking.recording, a.talk.recording} {
+			if rec != nil {
+				rec.Cancel()
+			}
 		}
 		return a, tea.Quit
 	case a.err != nil:
@@ -280,7 +287,7 @@ func (a App) typing() bool {
 	case Write:
 		return a.teacher != nil && a.write.typing()
 	case Talk:
-		return a.teacher != nil && a.talk.phase == talkChatting
+		return a.teacher != nil && a.talk.typing()
 	case Fluency:
 		return a.fluency.typing()
 	case Quiz:

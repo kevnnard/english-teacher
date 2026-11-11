@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/kevnnard/english-teacher/internal/domain"
+	"github.com/kevnnard/english-teacher/internal/speech"
 	"github.com/kevnnard/english-teacher/internal/teacher"
 )
 
@@ -26,6 +27,8 @@ type talkPhase int
 const (
 	talkPick        talkPhase = iota // choosing a scenario
 	talkChatting                     // the learner types a line
+	talkRecording                    // the learner says the line; ctrl+r stops
+	talkListening                    // whisper is writing the line down
 	talkWaiting                      // waiting for the tutor's reply
 	talkSummarizing                  // waiting for the feedback summary
 	talkSummaryFail                  // the summary failed; enter asks again
@@ -43,12 +46,21 @@ type talkState struct {
 	pending   string         // the line sent and waiting for its reply
 	startedAt time.Time      // when the role-play started, for the study minutes
 
+	recording speech.Recording // the line being recorded, while recording
+	try       int              // recordings started, so an old transcript is ignored
+
 	feedback teacher.Feedback
 	cards    []domain.Card // the error cards, kept until they are saved
 	added    int
 	cardErr  error // the cards could not be saved; `s` tries again
 	logErr   error // the major errors could not be logged
 	err      error // the last failed request, shown on the page
+}
+
+// typing reports whether every key belongs to the conversation: while
+// the learner types, records or waits for whisper.
+func (t talkState) typing() bool {
+	return t.phase == talkChatting || t.phase == talkRecording || t.phase == talkListening
 }
 
 // learnerTurns is how many lines the learner has said.
@@ -76,14 +88,15 @@ type talkFeedbackMsg struct {
 }
 
 // startTalk opens the scenario under the cursor with the tutor's opening
-// line. It needs no AI call.
-func (a *App) startTalk() {
+// line. It needs no AI call. The command says the opening in voice mode.
+func (a *App) startTalk() tea.Cmd {
 	t := &a.talk
 	sc := teacher.Scenarios[t.cursor]
 	a.talk = talkState{
-		phase: talkChatting, req: t.req + 1, cursor: t.cursor, scenario: sc,
+		phase: talkChatting, req: t.req + 1, try: t.try, cursor: t.cursor, scenario: sc,
 		lines: []teacher.Line{{Tutor: true, Text: sc.Opening}}, startedAt: a.now(),
 	}
+	return a.sayTutor(sc.Opening)
 }
 
 // sendLine sends the learner's line and asks the tutor for the next turn.
@@ -120,11 +133,13 @@ func (a App) gotTurn(msg talkMsg) (App, tea.Cmd) {
 		teacher.Line{Text: t.pending, Recast: msg.turn.Recast},
 		teacher.Line{Tutor: true, Text: msg.turn.Reply})
 	t.pending = ""
+	speak := a.sayTutor(msg.turn.Reply) // the reply only: the recast is to read
 	if msg.turn.Done || t.learnerTurns() >= maxTalkTurns {
-		return a.askTalkFeedback()
+		a, ask := a.askTalkFeedback()
+		return a, tea.Batch(speak, ask)
 	}
 	t.phase = talkChatting
-	return a, nil
+	return a, speak
 }
 
 // askTalkFeedback asks for the summary of the role-play.
@@ -211,10 +226,14 @@ func (a App) updateTalk(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		case "down", "j":
 			t.cursor = min(t.cursor+1, len(teacher.Scenarios)-1)
 		case "enter":
-			a.startTalk()
+			return a, a.startTalk()
 		}
+	case talkRecording, talkListening:
+		return a.updateTalkVoice(k)
 	case talkChatting:
 		switch k {
+		case "ctrl+r", "ctrl+t", "ctrl+p":
+			return a.updateTalkVoice(k)
 		case "enter":
 			return a.sendLine()
 		case "ctrl+d":
@@ -235,7 +254,7 @@ func (a App) updateTalk(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		case k == "s" && len(t.cards) > 0:
 			a.saveTalkCards()
 		case k == "n":
-			a.talk = talkState{phase: talkPick, req: t.req, cursor: t.cursor}
+			a.talk = talkState{phase: talkPick, req: t.req, try: t.try, cursor: t.cursor}
 		}
 	}
 	return a, nil

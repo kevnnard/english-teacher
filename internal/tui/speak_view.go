@@ -75,7 +75,7 @@ func (a App) speakItemView(width int) string {
 		b.WriteString(indent(ansi.Wordwrap(a.markedSentence(), width-2, ""), 2) + "\n\n")
 		heard := r.label.Render("Whisper heard: ") + r.value.Render(s.heard)
 		if strings.TrimSpace(s.heard) == "" {
-			heard = r.label.Render("Whisper heard nothing. Is your microphone plugged in and turned up?")
+			heard = r.label.Render(heardNothing)
 		}
 		b.WriteString(ansi.Wordwrap(heard, width, "") + "\n")
 		var missed []string
