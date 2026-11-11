@@ -818,6 +818,37 @@ func TestSyncPushReportsATempFileItCouldNotRemove(t *testing.T) {
 	}
 }
 
+func TestSyncPushDoesNotClaimAnUnconfirmedBackup(t *testing.T) {
+	stamp := fixSyncClock(t)
+	f := useFakeRemote(t)
+	final := false
+	f.fail = func(script string) bool {
+		if strings.Contains(script, "mv -f") {
+			final = true
+		}
+		return final
+	}
+	makeStudyDB(t, f.db(), "2026-11-10")
+	old, _ := os.ReadFile(f.db())
+	local := filepath.Join(t.TempDir(), "teacher.db")
+	makeStudyDB(t, local, "2026-11-11")
+
+	code, out, errOut := runCLI("--db", local, "sync", "push", "mac")
+
+	assertCLI(t, code, out, errOut, 1,
+		"Checking "+shownRemote+"\n"+
+			"Sending "+local+" (last study 2026-11-11)\n",
+		"teacher: ssh mac: connection lost; the connection dropped at the final step, so "+shownRemote+
+			" may already be replaced by "+local+"; if it was, its previous database was backed up first as "+
+			shownRemote+".bak-"+stamp+" or the same name with a -N suffix\n")
+	if b, _ := os.ReadFile(f.db()); !bytes.Equal(b, old) {
+		t.Error("remote database changed")
+	}
+	if m, _ := filepath.Glob(f.db() + ".bak-*"); len(m) != 0 {
+		t.Errorf("backups = %v, want none", m)
+	}
+}
+
 func TestSyncPushReportsAPossibleReplaceWhenTheConnectionDropsAtTheEnd(t *testing.T) {
 	stamp := fixSyncClock(t)
 	f := useFakeRemote(t)

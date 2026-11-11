@@ -140,7 +140,8 @@ teacher sync pull kev@mac    # bring the database of mac here
   that final rename, a failure leaves the database as it was; if the temp file
   cannot be removed, the error names it. If the connection drops during the
   final rename, the new database may already be in place on the other machine;
-  the error says so and names the backup, which is always kept.
+  the error says so and names the backup, which is always made before the
+  rename.
 - The database being replaced is kept next to it as
   `teacher.db.bak-<timestamp>`. A backup is never overwritten: a second sync
   in the same second adds `-1`, `-2` and so on. A missing database is created.

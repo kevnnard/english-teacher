@@ -295,7 +295,7 @@ func syncPush(ctx context.Context, dbPath string, r remote, force bool, tmp stri
 		case unknown.backup != "":
 			kept = "its previous database is kept as " + unknown.backup
 		case found:
-			kept = fmt.Sprintf("its previous database is kept as %s.bak-%s or the same name with a -N suffix", r, stamp)
+			kept = fmt.Sprintf("if it was, its previous database was backed up first as %s.bak-%s or the same name with a -N suffix", r, stamp)
 		}
 		return fmt.Errorf("%w; the connection dropped at the final step, so %s may already be replaced by %s; %s",
 			unknown.err, r, dbPath, kept)
