@@ -38,6 +38,7 @@ const (
 
 // pairsState is the Pairs screen: one round, its answers and its result.
 type pairsState struct {
+	kind      pairsKind // what `m` chose on an intro: minimal pairs is the zero value
 	phase     pairsPhase
 	count     int // rounds started, mixed into the seed so each one differs
 	items     []domain.PairItem
@@ -132,29 +133,41 @@ func (a *App) savePairs() {
 		p.saveErr = a.recordPairs(results)
 	}
 	if p.saveErr == nil {
-		if a.pairStats == nil {
-			a.pairStats = map[string]domain.PairStat{}
-		}
-		for _, r := range results {
-			st := a.pairStats[r.Contrast]
-			st.Contrast = r.Contrast
-			st.Attempts += r.Attempts
-			st.Correct += r.Correct
-			a.pairStats[r.Contrast] = st
-		}
+		a.addPairStats(results)
 	}
 	minutes := min(int(a.now().Sub(p.startedAt)/time.Minute), maxPairsMinutes)
 	activity := fmt.Sprintf("Pairs: %d/%d", p.score(), len(p.items))
 	a.addToToday(domain.Day{Minutes: max(minutes, 0), Activities: []string{activity}})
 }
 
+// addPairStats adds saved results to the totals in memory: minimal-pair
+// contrasts and prosody drills alike, by ID.
+func (a *App) addPairStats(results []domain.PairStat) {
+	if a.pairStats == nil {
+		a.pairStats = map[string]domain.PairStat{}
+	}
+	for _, r := range results {
+		st := a.pairStats[r.Contrast]
+		st.Contrast = r.Contrast
+		st.Attempts += r.Attempts
+		st.Correct += r.Correct
+		a.pairStats[r.Contrast] = st
+	}
+}
+
 func (a App) updatePairs(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if a.pairs.kind != pairsMinimal {
+		return a.updateProsody(msg)
+	}
 	p := &a.pairs
 	k := msg.String()
 	switch p.phase {
 	case pairsIntro:
-		if k == "enter" {
+		switch k {
+		case "enter":
 			return a.startPairs()
+		case "m":
+			return a.nextPairsKind(), nil
 		}
 	case pairsAsking:
 		switch k {

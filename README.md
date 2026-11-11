@@ -48,7 +48,7 @@
 | ⏱️ | **Can I say it faster?** | **Fluency**: the same story in 4, 3 and 2 minutes |
 | ✅ | **What do I really remember?** | **Quiz**: vocabulary from your cards, grammar on your errors, gaps in your own sentences |
 | 🎧 | **Do I understand it when I hear it?** | **Listen**: dictation of your own example sentences, or long listening (`s`): a 2–5 minute dialogue or story (needs audio) |
-| 👂 | **Can I hear ship from sheep?** | **Pairs**: minimal pairs for Spanish speakers, weakest sounds first (needs audio) |
+| 👂 | **Can I hear ship from sheep?** | **Pairs**: minimal pairs for Spanish speakers, weakest sounds first; `m`: word stress and intonation (needs audio) |
 | 🗣️ | **Do people understand what I say?** | **Speak**: say your own sentences; whisper marks each word it understood (needs audio and whisper) |
 | 🔥 | **Am I keeping it up?** | **Home** and **Stats**: streak, daily goal and study log |
 | 🎯 | **Am I ready for the next level?** | **Level** (`l` on Home): each criterion from your real data, then a short level check |
@@ -118,7 +118,7 @@ never resets a review schedule, and keeps the name and goal you set.
 correct with the AI), **Talk** (a guided role-play with the AI), **Fluency** (the same story
 three times, faster each time), **Quiz** (vocabulary from your cards,
 grammar from the AI, or grammar in context: gaps in your own sentences), **Listen** (dictation of your own sentences, with
-audio), **Pairs** (minimal pairs like ship / sheep, with audio), **Speak**
+audio), **Pairs** (minimal pairs like ship / sheep, word stress and intonation, with audio), **Speak**
 (say a sentence and see which words whisper understood, with audio and
 whisper), **Words** (every word with its status), **Stats**, **Level** (`l` on Home: readiness for the next level and the level check) and **Progress** (`g` on Home: the weekly summary and the can-do goals). Every screen is a notebook page: the top bar shows the date,
 the page ("Page 3 of 26" during a review) and the screen tabs (on 80
@@ -383,6 +383,37 @@ contrast of the round and the weakest one with its tip. A round counts as
 study (`Pairs: 17/20`, at most 10 minutes) and saves your results when you
 answer the last word; a round left midway saves nothing.
 
+#### Word stress and intonation
+
+`m` on the Pairs start page switches to **word stress**, then to
+**intonation**, then back to minimal pairs. Both work like a round of
+pairs: each item plays when it appears, `p` plays it again and `s` slower,
+you press its number, and the feedback has a tip in Spanish. The right
+answers are built in; no AI decides them.
+
+- **Word stress** (15 words): hear a word and choose its stressed
+  syllable, shown as `1 pho   2 tog   3 ra   4 phy`. The feedback marks it
+  (`pho·TOG·ra·phy`). The drills: two-syllable nouns (`TA·ble`),
+  two-syllable verbs (`be·GIN`), `-tion` / `-ic` (`in·for·MA·tion`),
+  `-ity` / `-logy` (`a·BIL·i·ty`), and word families where the stress
+  moves (`PHO·to·graph`, `pho·TOG·ra·pher`, `pho·to·GRAPH·ic`,
+  `e·CON·o·my`, `e·co·NOM·ic`, `POL·i·tics`, `po·LIT·i·cal`,
+  `pol·i·TI·cian`).
+- **Intonation** (12 sentences): hear a sentence with the word order of a
+  statement (`You're tired`) and choose `1 question ↗` or
+  `2 statement ↘`. Piper says it with `?` or `.`, and that changes the
+  voice: with `.` it falls at the end, with `?` it ends high, about an
+  octave apart. Each sentence was checked with the default voice
+  (en_US-lessac-medium) at both speeds; sentences whose question did not
+  end high were left out. Other voices may differ less, so intonation
+  always uses your configured voice. To check it on your machine:
+  `TEACHER_LIVE=1 go test ./internal/speech/piper -run LiveIntonation -v`.
+
+Results are kept per drill next to the pair results, and the next round
+starts with your weakest drill, with the same weights as the contrasts. A
+round counts as study (`Stress: 12/15`, `Intonation: 10/12`, at most 10
+minutes); the level's Pairs criterion counts only `Pairs:` rounds.
+
 ### Speak
 
 Speak is shadowing: hear a sentence, then say it. It needs
@@ -541,7 +572,7 @@ Press `p` to listen; `p` twice within 2 seconds plays the same text slower.
 | Write | the right version of the first error you did not fix (feedback), or of the one you just rewrote |
 | Quiz | the right answer, once you have answered |
 | Listen | the sentence, once checked (while typing: `ctrl+p`, `ctrl+s` slower) |
-| Pairs | the word played (`s` slower); after the answer, `1` and `2` play each word |
+| Pairs | the word played (`s` slower); after the answer, `1` and `2` play each word. Word stress and intonation: the word or sentence (`s` slower) |
 | Speak | the sentence (`s` slower) |
 | Talk | the tutor's lines, on their own in voice mode (`ctrl+t` on / off); `ctrl+p` the last one again. `ctrl+r` records your line into the input |
 
@@ -644,6 +675,8 @@ current screen.
 | | `↑ ↓` / `p` | in the transcript: choose a sentence / hear it (`p p` slower) |
 | Pairs | `enter` | start a round; after the feedback, the next word |
 | | `1` / `2` | choose which word you heard; after it, hear each one |
+| | `m` | on a start page: minimal pairs, word stress, intonation |
+| | `1`–`5` | word stress: the stressed syllable; intonation: `1` question ↗, `2` statement ↘ |
 | | `p` / `s` | hear the word again / slower |
 | | `n` | a new round from the result |
 | | `esc` | back to Home; the round stays (saved only at the end) |

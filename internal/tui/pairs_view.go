@@ -14,6 +14,9 @@ const pairsTitle = "Pairs · Minimal pairs"
 
 func (a App) pairsView(w int) string {
 	width := max(w, 20)
+	if a.pairs.kind != pairsMinimal {
+		return a.prosodyView(width)
+	}
 	switch a.pairs.phase {
 	case pairsAsking, pairsAnswered:
 		return a.pairsItemView(width)
@@ -97,27 +100,46 @@ func (a App) pairsResultView(width int) string {
 		b.WriteString(r.danger.Render("Could not save your pair results: "+p.saveErr.Error()) + "\n")
 	}
 
-	b.WriteString("\n" + r.secondary.Render("This round") + "\n")
 	round := domain.TallyPairs(p.items, p.rights())
+	b.WriteString(a.roundStatsView(round, width, func(id string) (string, string) {
+		c := contrastByID(id)
+		return c.Label, c.Tip
+	}))
+	return strings.TrimSuffix(b.String(), "\n")
+}
+
+// roundStatsView is the "This round" list of a Pairs result: each
+// contrast or drill of the round with its score, then the weakest one
+// with its tip. about gives the label and tip of an ID.
+func (a App) roundStatsView(round []domain.PairStat, width int, about func(id string) (label, tip string)) string {
+	r := a.st.main
+	var b strings.Builder
+	b.WriteString("\n" + r.secondary.Render("This round") + "\n")
+	pad := 24 // the labels line up, at least as wide as a contrast's
+	for _, st := range round {
+		label, _ := about(st.Contrast)
+		pad = max(pad, ansi.StringWidth(label))
+	}
 	var weakest *domain.PairStat
 	for i, st := range round {
-		c := contrastByID(st.Contrast)
+		label, _ := about(st.Contrast)
 		mark := r.success.Render("✓")
 		if st.Correct < st.Attempts {
 			mark = r.danger.Render("✗")
 		}
-		fmt.Fprintf(&b, "  %s %s %s\n", mark, r.value.Render(fmt.Sprintf("%-24s", c.Label)),
+		label += strings.Repeat(" ", pad-ansi.StringWidth(label))
+		fmt.Fprintf(&b, "  %s %s %s\n", mark, r.value.Render(label),
 			r.label.Render(fmt.Sprintf("%d/%d", st.Correct, st.Attempts)))
 		if st.Correct < st.Attempts && (weakest == nil || st.Accuracy() < weakest.Accuracy()) {
 			weakest = &round[i]
 		}
 	}
 	if weakest != nil {
-		c := contrastByID(weakest.Contrast)
-		b.WriteString("\n" + r.secondary.Render("Weakest: "+c.Label) + "\n")
-		b.WriteString(indent(r.value.Render(ansi.Wordwrap(c.Tip, width-2, "")), 2))
+		label, tip := about(weakest.Contrast)
+		b.WriteString("\n" + r.secondary.Render("Weakest: "+label) + "\n")
+		b.WriteString(indent(r.value.Render(ansi.Wordwrap(tip, width-2, "")), 2))
 	}
-	return strings.TrimSuffix(b.String(), "\n")
+	return b.String()
 }
 
 // contrastByID is the built-in contrast with id; the zero Contrast when
@@ -134,6 +156,9 @@ func contrastByID(id string) domain.Contrast {
 // pairsHints are the keys of the Pairs screen. No text is typed here, so
 // p and s are the audio keys.
 func (a App) pairsHints() []string {
+	if a.pairs.kind != pairsMinimal {
+		return a.prosodyHints()
+	}
 	p := a.pairs
 	switch p.phase {
 	case pairsAsking:
@@ -147,8 +172,18 @@ func (a App) pairsHints() []string {
 	case pairsResult:
 		return []string{"n new round", "tab screens", "esc home"}
 	}
-	if a.speaker != nil {
-		return []string{"enter start", "tab screens", "esc home"}
+	return a.pairsIntroHints()
+}
+
+// pairsIntroHints are the keys of an intro of any kind: `m` switches to
+// the next kind.
+func (a App) pairsIntroHints() []string {
+	m := "m " + ((a.pairs.kind + 1) % pairsKinds).String()
+	if a.pairs.kind == pairsMinimal {
+		m = "m stress · intonation"
 	}
-	return []string{"tab screens", "esc home", "? help"}
+	if a.speaker != nil {
+		return []string{"enter start", m, "tab screens", "esc home"}
+	}
+	return []string{m, "tab screens", "esc home", "? help"}
 }

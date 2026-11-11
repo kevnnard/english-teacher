@@ -71,7 +71,7 @@ type Config struct {
 	Recorder    speech.Recorder    // records the learner for Speak; nil when no recorder is found
 	Transcriber speech.Transcriber // writes down what the learner said; nil when whisper is not set up
 
-	PairStats   map[string]domain.PairStat // the learner's totals per minimal-pair contrast
+	PairStats   map[string]domain.PairStat // the learner's totals per minimal-pair contrast and prosody drill
 	RecordPairs RecordPairsFunc            // adds a round's results to the totals; nil saves nothing
 
 	MistakeCounts  map[string]int     // logged major writing errors per kind
@@ -98,8 +98,8 @@ type SaveProfileFunc func(domain.Profile) error
 // store.RecordMistakes.
 type RecordMistakesFunc func([]domain.Mistake) error
 
-// RecordPairsFunc adds the results of one minimal-pairs round to the
-// learner's totals, like store.RecordPairResults.
+// RecordPairsFunc adds the results of one minimal-pairs, word-stress or
+// intonation round to the learner's totals, like store.RecordPairResults.
 type RecordPairsFunc func([]domain.PairStat) error
 
 // DefaultMaxNew is the usual cap on new cards in one session.
@@ -147,7 +147,8 @@ type App struct {
 	speaking    speakState
 
 	pairs       pairsState
-	pairStats   map[string]domain.PairStat // totals per contrast, as stored
+	prosody     prosodyState               // word stress or intonation, in Pairs
+	pairStats   map[string]domain.PairStat // totals per contrast and prosody drill, as stored
 	recordPairs RecordPairsFunc
 
 	screen        Screen

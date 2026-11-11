@@ -103,6 +103,8 @@ var helpSections = []helpSection{
 	{"Pairs", [][2]string{
 		{"enter", "start a round; after the feedback, the next word"},
 		{"1 / 2", "choose which word you heard; after it, hear each one"},
+		{"m", "on a start page: minimal pairs, word stress, intonation"},
+		{"1–5", "word stress: the stressed syllable; intonation: 1 ↗ 2 ↘"},
 		{"p / s", "hear the word again / slower"},
 		{"n", "a new round from the result"},
 		{"esc", "back to Home; the round stays (saved only at the end)"},
