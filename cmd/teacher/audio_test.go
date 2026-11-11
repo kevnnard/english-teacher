@@ -121,16 +121,20 @@ func TestSetupVoiceFailureLeavesNoFiles(t *testing.T) {
 
 func TestSetupNeedsAKnownThing(t *testing.T) {
 	isolate(t)
-	for _, args := range [][]string{{"setup"}, {"setup", "music"}, {"setup", "voice", "x"}} {
+	for _, args := range [][]string{{"setup"}, {"setup", "music"}, {"setup", "voice", "x"}, {"setup", "whisper", "x"}} {
 		if err := run(args, &bytes.Buffer{}); err == nil || !strings.Contains(err.Error(), "usage") {
 			t.Errorf("%v: err = %v, want usage", args, err)
 		}
 	}
 }
 
-// fakePath replaces lookPath for one test with a PATH holding only found.
+// fakePath replaces lookPath for one test with a PATH holding only found,
+// and empties the Homebrew folders searched after PATH.
 func fakePath(t *testing.T, found map[string]string) {
 	t.Helper()
+	origBrew := brewDirs
+	brewDirs = []string{}
+	t.Cleanup(func() { brewDirs = origBrew })
 	orig := lookPath
 	lookPath = func(file string) (string, error) {
 		if p, ok := found[file]; ok {
@@ -146,7 +150,11 @@ func TestDoctorWithEverythingInstalled(t *testing.T) {
 	model := filepath.Join(data, "english-teacher", "voices", "en_US-lessac-medium.onnx")
 	os.MkdirAll(filepath.Dir(model), 0o755)
 	os.WriteFile(model, nil, 0o644)
-	fakePath(t, map[string]string{"pi": "/bin/pi", "piper": "/bin/piper", "paplay": "/bin/paplay", "whisper-cli": "/bin/whisper-cli"})
+	whisperModel := filepath.Join(data, "english-teacher", "models", "ggml-base.en.bin")
+	os.MkdirAll(filepath.Dir(whisperModel), 0o755)
+	os.WriteFile(whisperModel, nil, 0o644)
+	fakePath(t, map[string]string{"pi": "/bin/pi", "piper": "/bin/piper", "paplay": "/bin/paplay",
+		"whisper-cli": "/bin/whisper-cli", "arecord": "/bin/arecord"})
 
 	var out bytes.Buffer
 	if err := run([]string{"doctor"}, &out); err != nil {
@@ -158,7 +166,9 @@ func TestDoctorWithEverythingInstalled(t *testing.T) {
 		"✓ piper (speech)             /bin/piper\n" +
 		"✓ voice                      " + model + "\n" +
 		"✓ audio player               /bin/paplay\n" +
-		"✓ whisper-cli (listening)    /bin/whisper-cli\n"
+		"✓ whisper-cli (listening)    /bin/whisper-cli\n" +
+		"✓ whisper model              " + whisperModel + "\n" +
+		"✓ recorder (microphone)      /bin/arecord\n"
 	if out.String() != want {
 		t.Errorf("stdout:\n%s\nwant:\n%s", out.String(), want)
 	}
@@ -167,6 +177,7 @@ func TestDoctorWithEverythingInstalled(t *testing.T) {
 func TestDoctorWithNothingInstalledStillSucceeds(t *testing.T) {
 	data, _ := isolate(t)
 	model := filepath.Join(data, "english-teacher", "voices", "en_US-lessac-medium.onnx")
+	whisperModel := filepath.Join(data, "english-teacher", "models", "ggml-base.en.bin")
 	fakePath(t, map[string]string{})
 
 	var out bytes.Buffer
@@ -179,7 +190,9 @@ func TestDoctorWithNothingInstalledStillSucceeds(t *testing.T) {
 		"✗ piper (speech)             piper not found: install it with `uv tool install piper-tts`, then run `teacher setup voice`\n" +
 		"✗ voice                      voice not found: " + model + ": run `teacher setup voice`\n" +
 		"✗ audio player               no audio player found (pw-play, paplay, aplay, afplay): install pw-play (pipewire), paplay (pulseaudio) or aplay (alsa-utils)\n" +
-		"✗ whisper-cli (listening)    not found (whisper-cli): install whisper.cpp to practise speaking (coming in v0.2.0)\n"
+		"✗ whisper-cli (listening)    whisper-cli not found: install whisper.cpp with `brew install whisper-cpp` (or see the whisper.cpp README), then run `teacher setup whisper`\n" +
+		"✗ whisper model              whisper model not found: " + whisperModel + ": run `teacher setup whisper`\n" +
+		"✗ recorder (microphone)      no recorder found (pw-record, arecord, sox): install pw-record (pipewire), arecord (alsa-utils) or sox\n"
 	if out.String() != want {
 		t.Errorf("stdout:\n%s\nwant:\n%s", out.String(), want)
 	}
@@ -264,5 +277,111 @@ func TestInstalledVoicesListsTheModelsInTheFolder(t *testing.T) {
 	}
 	if got := installedVoices(filepath.Join(dir, "missing")); len(got) != 0 {
 		t.Errorf("a missing folder has voices %q", got)
+	}
+}
+
+// fakeModelServer serves the whisper model and counts the requests.
+func fakeModelServer(t *testing.T, status int) *int {
+	t.Helper()
+	requests := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		if status != http.StatusOK {
+			http.Error(w, "nope", status)
+			return
+		}
+		if r.URL.Path != "/ggml-base.en.bin" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Write([]byte("GGML"))
+	}))
+	t.Cleanup(srv.Close)
+	orig := whisperBaseURL
+	whisperBaseURL = srv.URL
+	t.Cleanup(func() { whisperBaseURL = orig })
+	return &requests
+}
+
+func TestSetupWhisperDownloadsThenIsIdempotent(t *testing.T) {
+	data, _ := isolate(t)
+	requests := fakeModelServer(t, http.StatusOK)
+	models := filepath.Join(data, "english-teacher", "models")
+	model := filepath.Join(models, "ggml-base.en.bin")
+
+	var out bytes.Buffer
+	if err := run([]string{"setup", "whisper"}, &out); err != nil {
+		t.Fatal(err)
+	}
+
+	if want := "Downloading ggml-base.en.bin (about 150 MB)\nWhisper model saved: " + model + "\n"; out.String() != want {
+		t.Errorf("stdout = %q, want %q", out.String(), want)
+	}
+	if got, _ := os.ReadFile(model); string(got) != "GGML" {
+		t.Errorf("model = %q", got)
+	}
+	if entries, _ := os.ReadDir(models); len(entries) != 1 {
+		t.Errorf("models folder has %d files, want 1 (no temp files)", len(entries))
+	}
+
+	out.Reset()
+	if err := run([]string{"setup", "whisper"}, &out); err != nil {
+		t.Fatal(err)
+	}
+	if want := "Whisper model already installed: " + model + "\n"; out.String() != want {
+		t.Errorf("second run stdout = %q, want %q", out.String(), want)
+	}
+	if *requests != 1 {
+		t.Errorf("%d requests, want 1: the second run must not download", *requests)
+	}
+}
+
+func TestSetupWhisperFailureLeavesNoFiles(t *testing.T) {
+	data, _ := isolate(t)
+	fakeModelServer(t, http.StatusNotFound)
+
+	err := run([]string{"setup", "whisper"}, &bytes.Buffer{})
+
+	if err == nil || !strings.Contains(err.Error(), "404") {
+		t.Errorf("err = %v, want the HTTP status", err)
+	}
+	if entries, _ := os.ReadDir(filepath.Join(data, "english-teacher", "models")); len(entries) != 0 {
+		t.Errorf("files left after a failed download: %v", entries)
+	}
+}
+
+func TestDoctorFindsWhisperInTheBrewFolder(t *testing.T) {
+	isolate(t)
+	fakePath(t, map[string]string{})
+	brew := t.TempDir()
+	bin := filepath.Join(brew, "whisper-cli")
+	os.WriteFile(bin, nil, 0o755)
+	brewDirs = []string{brew}
+
+	var out bytes.Buffer
+	run([]string{"doctor"}, &out)
+
+	if want := "✓ whisper-cli (listening)    " + bin + "\n"; !strings.Contains(out.String(), want) {
+		t.Errorf("stdout lacks %q:\n%s", want, out.String())
+	}
+}
+
+func TestRecorderAndTranscriberAreNilWithoutWhisper(t *testing.T) {
+	data, _ := isolate(t)
+	fakePath(t, map[string]string{"whisper-cli": "/bin/whisper-cli"}) // no model, no recorder
+	c := defaultConfig()
+	if r := c.recorder(); r != nil {
+		t.Errorf("recorder = %v, want nil without a recorder program", r)
+	}
+	if tr := c.transcriber(); tr != nil {
+		t.Errorf("transcriber = %v, want nil without the model", tr)
+	}
+
+	model := filepath.Join(data, "english-teacher", "models", "ggml-base.en.bin")
+	os.MkdirAll(filepath.Dir(model), 0o755)
+	os.WriteFile(model, nil, 0o644)
+	fakePath(t, map[string]string{"whisper-cli": "/bin/whisper-cli", "pw-record": "/bin/pw-record"})
+	if c.recorder() == nil || c.transcriber() == nil {
+		t.Error("recorder or transcriber = nil with whisper-cli, the model and pw-record")
 	}
 }

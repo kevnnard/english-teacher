@@ -8,11 +8,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/kevnnard/english-teacher/internal/speech"
 	"github.com/kevnnard/english-teacher/internal/speech/piper"
+	"github.com/kevnnard/english-teacher/internal/speech/whisper"
 )
 
 // lookPath finds a program on PATH. Tests replace it.
@@ -21,12 +23,61 @@ var lookPath = exec.LookPath
 // voiceBaseURL is where the Piper voices are published. Tests replace it.
 var voiceBaseURL = "https://huggingface.co/rhasspy/piper-voices/resolve/main"
 
+// whisperBaseURL is where the whisper.cpp models are published. Tests
+// replace it.
+var whisperBaseURL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main"
+
+// brewDirs are the Homebrew folders searched for whisper-cli after PATH.
+// Tests replace it.
+var brewDirs = whisper.BrewDirs
+
 // defaultVoiceFolder is the voice's folder under voiceBaseURL.
 const defaultVoiceFolder = "en/en_US/lessac/medium"
 
 // voicesDir follows the XDG spec: $XDG_DATA_HOME, else ~/.local/share.
 func voicesDir(xdgData, home string) string {
 	return filepath.Join(filepath.Dir(defaultDBPath(xdgData, home)), "voices")
+}
+
+// modelsDir is where the whisper model goes, next to the voices.
+func modelsDir(xdgData, home string) string {
+	return filepath.Join(filepath.Dir(defaultDBPath(xdgData, home)), "models")
+}
+
+// whisperSetup tells the whisper adapter where to look: whisper-cli on
+// PATH, else in ~/.linuxbrew/bin or brewDirs.
+func whisperSetup() whisper.Setup {
+	home, _ := os.UserHomeDir()
+	fallback := slices.Clone(brewDirs)
+	if home != "" {
+		fallback = append([]string{filepath.Join(home, ".linuxbrew", "bin")}, fallback...)
+	}
+	return whisper.Setup{
+		ModelsDir: modelsDir(os.Getenv("XDG_DATA_HOME"), home),
+		Home:      home,
+		Fallback:  fallback,
+		LookPath:  lookPath,
+	}
+}
+
+// recorder records the microphone, or is nil when no recorder program
+// is found: Speak then says how to install one.
+func (c config) recorder() speech.Recorder {
+	r, err := whisper.NewRecorder(whisperSetup())
+	if err != nil {
+		return nil
+	}
+	return r
+}
+
+// transcriber is whisper, or nil when whisper-cli or its model is
+// missing: Speak then says how to set it up.
+func (c config) transcriber() speech.Transcriber {
+	t, err := whisper.NewTranscriber(whisperSetup())
+	if err != nil {
+		return nil
+	}
+	return t
 }
 
 // speechSetup tells the Piper adapter where to look, from the config and
@@ -72,13 +123,39 @@ func (c config) voices() []string {
 	return installedVoices(c.speechSetup().VoicesDir)
 }
 
-// runSetup sets up one optional capability; today only "voice".
+// runSetup sets up one optional capability: "voice" (speech) or
+// "whisper" (listening to the learner).
 func runSetup(args []string, stdout io.Writer) error {
-	if len(args) != 1 || args[0] != "voice" {
+	if len(args) != 1 {
 		return errors.New(usage)
 	}
 	home, _ := os.UserHomeDir()
-	return setupVoice(voicesDir(os.Getenv("XDG_DATA_HOME"), home), stdout)
+	switch args[0] {
+	case "voice":
+		return setupVoice(voicesDir(os.Getenv("XDG_DATA_HOME"), home), stdout)
+	case "whisper":
+		return setupWhisper(modelsDir(os.Getenv("XDG_DATA_HOME"), home), stdout)
+	}
+	return errors.New(usage)
+}
+
+// setupWhisper downloads the whisper model into dir. A model already
+// there is kept, so running it again downloads nothing.
+func setupWhisper(dir string, stdout io.Writer) error {
+	model := whisper.ModelPath(dir)
+	if _, err := os.Stat(model); err == nil {
+		fmt.Fprintln(stdout, "Whisper model already installed:", model)
+		return nil
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	fmt.Fprintln(stdout, "Downloading", whisper.ModelFile, "(about 150 MB)")
+	if err := download(whisperBaseURL+"/"+whisper.ModelFile, model); err != nil {
+		return err
+	}
+	fmt.Fprintln(stdout, "Whisper model saved:", model)
+	return nil
 }
 
 // setupVoice downloads the default voice model and its config into dir.
@@ -160,7 +237,10 @@ func runDoctor(path string, stdout io.Writer) error {
 	voicePath, voiceErr := setup.FindVoice("")
 	playerPath, playerErr := setup.FindPlayer()
 	piPath, piErr := findProgram(c.Pi, "install Gentle Shell or set \"pi\" in the config")
-	whisperPath, whisperErr := findProgram("whisper-cli", "install whisper.cpp to practise speaking (coming in v0.2.0)")
+	ws := whisperSetup()
+	whisperPath, whisperErr := ws.FindWhisper()
+	modelPath, modelErr := ws.FindModel()
+	recorderPath, recorderErr := ws.FindRecorder()
 
 	for _, ch := range []check{
 		{"pi (AI)", piPath, piErr},
@@ -168,6 +248,8 @@ func runDoctor(path string, stdout io.Writer) error {
 		{"voice", voicePath, voiceErr},
 		{"audio player", playerPath, playerErr},
 		{"whisper-cli (listening)", whisperPath, whisperErr},
+		{"whisper model", modelPath, modelErr},
+		{"recorder (microphone)", recorderPath, recorderErr},
 	} {
 		mark, detail := "✓", ch.found
 		if ch.err != nil {
