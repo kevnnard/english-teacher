@@ -19,7 +19,7 @@
 </p>
 
 ```text
- Monday 9 Nov  ·  Home     Home  Review  Learn  Write  Talk  Fluency  Quiz  Listen  Pairs  Words  Stats
+ Monday 9 Nov  ·  Home     Home  Review  Learn  Write  Talk  Fluency  Quiz  Listen  Pairs  Speak  Words  Stats
       │
       │   Good evening.
       │
@@ -48,6 +48,7 @@
 | ✅ | **What do I really remember?** | **Quiz**: vocabulary from your cards, grammar on your errors |
 | 🎧 | **Do I understand it when I hear it?** | **Listen**: dictation of your own example sentences (needs audio) |
 | 👂 | **Can I hear ship from sheep?** | **Pairs**: minimal pairs for Spanish speakers, weakest sounds first (needs audio) |
+| 🗣️ | **Do people understand what I say?** | **Speak**: say your own sentences; whisper marks each word it understood (needs audio and whisper) |
 | 🔥 | **Am I keeping it up?** | **Home** and **Stats**: streak, daily goal and study log |
 
 ## Install
@@ -94,7 +95,8 @@ teacher [--db path] set goal <minutes>           set the daily goal (default 20)
 teacher models                                   list the AI model of each capability
 teacher set model <capability> <provider/model>  reading, writing, conversation or quiz
 teacher setup voice                              download the default voice for speech
-teacher doctor                                   check pi, piper, the voice, a player and whisper
+teacher setup whisper                            download the whisper model for Speak
+teacher doctor                                   check the AI, speech and listening programs
 teacher --version                                print the version
 ```
 
@@ -111,10 +113,12 @@ never resets a review schedule, and keeps the name and goal you set.
 correct with the AI), **Talk** (a guided role-play with the AI), **Fluency** (the same story
 three times, faster each time), **Quiz** (vocabulary from your cards or
 grammar from the AI), **Listen** (dictation of your own sentences, with
-audio), **Pairs** (minimal pairs like ship / sheep, with audio), **Words** (every word with its status) and **Stats**. Every screen is a notebook page: the top bar shows the date,
+audio), **Pairs** (minimal pairs like ship / sheep, with audio), **Speak**
+(say a sentence and see which words whisper understood, with audio and
+whisper), **Words** (every word with its status) and **Stats**. Every screen is a notebook page: the top bar shows the date,
 the page ("Page 3 of 26" during a review) and the screen tabs (on 80
 columns the page name, which the active tab already shows, and then the
-long date make room for them); a margin line
+date make room for them, down to the weekday); a margin line
 runs down the left (6 columns in from the edge on terminals 100+ columns
 wide, 2 on narrower ones) and the text never gets wider than 76 columns.
 
@@ -322,6 +326,32 @@ contrast of the round and the weakest one with its tip. A round counts as
 study (`Pairs: 17/20`, at most 10 minutes) and saves your results when you
 answer the last word; a round left midway saves nothing.
 
+### Speak
+
+Speak is shadowing: hear a sentence, then say it. It needs
+[audio and whisper](#audio-optional). A round takes up to 8 example
+sentences of your own cards (the same ones as Listen: at most 12 words,
+studied words first). Each sentence is on the page and plays when it
+appears; `p` plays it again and `s` slower. `enter` starts recording
+("● Recording… enter to stop"), `enter` again stops it, and whisper writes
+down what it heard, on your computer ("Listening…"); `esc` while recording
+throws the recording away. Then every word of the sentence is marked:
+green when whisper understood it, amber and underlined when not, with
+"Whisper heard: …" below. Words are compared ignoring case and punctuation
+(not the apostrophe); `30` equals `thirty`, and spellings that sound the
+same match (`colour` and `color`, `Ana` and `Anna`). A changed vowel or a
+dropped ending never does: `ship` is not `shop` or `sheep`, and `worked`
+is not `work`. `r` tries the same sentence again;
+`enter` goes on.
+
+Words not understood are practice items for this round: after the last
+sentence, every sentence that had a word not understood comes back once, as
+"Practice again". The result shows how many sentences whisper fully
+understood at the first try (`6 of 8 sentences fully understood`) and the
+words to practise. The round counts as study (`Speak: 6/8`, at most 10
+minutes) when it ends. The words to practise are not stored: only the
+activity is. Without audio or whisper, the page says how to set them up.
+
 ## Configuration and data
 
 Models live in `$XDG_CONFIG_HOME/english-teacher/config.json`
@@ -340,8 +370,24 @@ the app works the same, just silent.
 ```sh
 uv tool install piper-tts   # installs ~/.local/bin/piper
 teacher setup voice         # downloads en_US-lessac-medium (about 60 MB)
-teacher doctor              # shows what is found: pi, piper, the voice, a player, whisper
+teacher doctor              # shows what is found: pi, piper, the voice, a player, whisper, a recorder
 ```
+
+Speak also listens to you, with [whisper.cpp](https://github.com/ggml-org/whisper.cpp),
+a local speech-to-text program, and a recorder:
+
+```sh
+brew install whisper-cpp    # installs whisper-cli (or build it: see the whisper.cpp README)
+teacher setup whisper       # downloads the model ggml-base.en (about 150 MB)
+```
+
+The model lives in `$XDG_DATA_HOME/english-teacher/models/`
+(`~/.local/share/english-teacher/models/`). `whisper-cli` is looked up on
+your PATH, then in Homebrew's folders (`/home/linuxbrew/.linuxbrew/bin`,
+`~/.linuxbrew/bin`, `/opt/homebrew/bin`, `/usr/local/bin`). Your voice is
+recorded with the first of `pw-record` (PipeWire), `arecord` (ALSA) or
+`sox` found, at 16 kHz mono, into a temporary file that is removed once
+whisper has read it. Nothing leaves your machine.
 
 Voices live in `$XDG_DATA_HOME/english-teacher/voices/`
 (`~/.local/share/english-teacher/voices/`). Sound plays through the first of
@@ -357,6 +403,7 @@ Press `p` to listen; `p` twice within 2 seconds plays the same text slower.
 | Quiz | the right answer, once you have answered |
 | Listen | the sentence, once checked (while typing: `ctrl+p`, `ctrl+s` slower) |
 | Pairs | the word played (`s` slower); after the answer, `1` and `2` play each word |
+| Speak | the sentence (`s` slower) |
 
 While you type, `p` is a letter. Without audio, `p` shows
 "Audio is off: run `teacher doctor`" and nothing else changes.
@@ -445,6 +492,11 @@ current screen.
 | | `p` / `s` | hear the word again / slower |
 | | `n` | a new round from the result |
 | | `esc` | back to Home; the round stays (saved only at the end) |
+| Speak | `enter` | start a round; start / stop recording; after the marks, the next sentence |
+| | `p` / `s` | hear the sentence again / slower |
+| | `esc` | while recording: cancel it; else back to Home (the round stays) |
+| | `r` | after the marks: try the same sentence again |
+| | `n` | a new round from the result |
 | Words | `/` | filter by word or meaning (`enter` keep · `esc` clear) |
 | | `↑` `↓` / `j` `k` | scroll |
 
@@ -455,12 +507,12 @@ current screen.
 cmd/teacher/        CLI entry point
 internal/domain/    pure types: Card, Grade, Answer, Direction
 internal/srs/       SM-2 scheduler and session planning (pure, no I/O)
-internal/check/     typed-answer check and letter diff (pure)
+internal/check/     typed-answer check, letter diff and spoken-word marks (pure)
 internal/progress/  streak, week and daily totals (pure, no I/O)
 internal/importer/  imports a markdown vocabulary bank and progress folder
 internal/store/     SQLite persistence
 internal/llm/pi/    runs the AI through the pi CLI
-internal/speech/    audio port; speech/piper/ speaks through Piper
+internal/speech/    audio port; speech/piper/ speaks through Piper, speech/whisper/ records and transcribes
 internal/teacher/   AI teacher use cases: prompts and answers
 internal/tui/       Bubbletea screens
 ```

@@ -125,6 +125,8 @@ func (a App) screenView(w, h int) string {
 		return a.dictationView(w)
 	case Pairs:
 		return a.pairsView(w)
+	case Speak:
+		return a.speakView(w)
 	default:
 		return a.st.main.title.Render(a.screen.String())
 	}
@@ -139,8 +141,9 @@ func (a App) errorView() string {
 // header is the top bar: the date and what this page is on the left, the
 // tabs on the right. When the tabs do not fit, they move closer together.
 // If they still do not fit and the page context only repeats the active
-// tab's name, the context goes and then the date gets shorter: on 80
-// columns every tab stays. Otherwise only the active tab stays.
+// tab's name, the context goes and then the date gets shorter, down to
+// the weekday: on 80 columns every tab stays. Otherwise only the active
+// tab stays.
 func (a App) header(w int) string {
 	r := a.st.chrome
 	date := func(layout string) string { return r.base.Render(" ") + r.title.Render(a.now().Format(layout)) }
@@ -162,7 +165,7 @@ func (a App) header(w int) string {
 	if !fits(right) {
 		right = strings.Join(tabs, r.base.Render(" ")) + r.base.Render(" ")
 	}
-	for _, layout := range []string{"Monday 2 Jan", "Mon 2 Jan"} {
+	for _, layout := range []string{"Monday 2 Jan", "Mon 2 Jan", "Mon"} {
 		if !fits(right) && pageName == a.screen.String() {
 			left = date(layout) // the active tab already names the page
 		}
@@ -249,6 +252,8 @@ func (a App) hints() []string {
 		return a.dictationHints() // its own ctrl+p and ctrl+s say the sentence
 	case Pairs:
 		return a.pairsHints() // its own p and s say the word
+	case Speak:
+		return a.speakHints() // its own p and s say the sentence
 	case Words:
 		if a.words.filtering {
 			return []string{"type to filter", "enter keep", "esc clear"}

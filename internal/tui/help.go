@@ -99,6 +99,13 @@ var helpSections = []helpSection{
 		{"n", "a new round from the result"},
 		{"esc", "back to Home; the round stays (saved only at the end)"},
 	}},
+	{"Speak", [][2]string{
+		{"enter", "start a round; start / stop recording; the next one"},
+		{"p / s", "hear the sentence again / slower"},
+		{"esc", "while recording: cancel it; else back to Home"},
+		{"r", "after the marks: try the same sentence again"},
+		{"n", "a new round from the result"},
+	}},
 	{"Words", [][2]string{
 		{"/", "filter by word or meaning (enter keep · esc clear)"},
 		{"↑ ↓ / j k", "scroll"},

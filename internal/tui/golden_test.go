@@ -31,6 +31,7 @@ func TestGolden(t *testing.T) {
 			keys: []string{"space", "1", "space", "1", "space", "3", "space", "3", "space", "4"}},
 		{name: "listen-no-audio", cards: deck(), start: Listen},
 		{name: "pairs-no-audio", cards: deck(), start: Pairs},
+		{name: "speak-no-audio", cards: deck(), start: Speak},
 	}
 	for _, c := range cases {
 		for _, width := range []int{80, 120, 160} {

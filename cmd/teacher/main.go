@@ -11,7 +11,8 @@
 //	teacher [--config path] models                       list the model of each capability
 //	teacher [--config path] set model <capability> <m>   set the model of one capability
 //	teacher setup voice                                  download the default voice for speech
-//	teacher [--config path] doctor                       check pi, piper, the voice, a player and whisper
+//	teacher setup whisper                                download the whisper model for Speak
+//	teacher [--config path] doctor                       check pi, piper, the voice, a player, whisper and a recorder
 //	teacher --version                                    print the version
 package main
 
@@ -46,7 +47,8 @@ const usage = `usage:
   teacher models                                   list the AI model of each capability
   teacher set model <capability> <provider/model>  reading, writing, conversation or quiz
   teacher setup voice                              download the default voice for speech
-  teacher doctor                                   check pi, piper, the voice, a player and whisper
+  teacher setup whisper                            download the whisper model for Speak
+  teacher doctor                                   check the AI, speech and listening programs
   teacher --version                                print the version
 
   --new n  most never-reviewed cards per session (default 20)`
@@ -394,7 +396,10 @@ func appConfig(ctx context.Context, st *store.Store, opts appOptions) (tui.Confi
 		Teacher: teacher.New(conf.models()),
 		Speaker: conf.speaker(),
 		Voices:  conf.voices(),
-		Add:     func(c []domain.Card) (int, error) { return st.AddCards(ctx, c) },
+
+		Recorder:    conf.recorder(),
+		Transcriber: conf.transcriber(),
+		Add:         func(c []domain.Card) (int, error) { return st.AddCards(ctx, c) },
 
 		MistakeCounts:  mistakes,
 		RecordMistakes: func(m []domain.Mistake) error { return st.RecordMistakes(ctx, m) },

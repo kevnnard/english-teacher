@@ -254,7 +254,7 @@ func TestPairsAbandonedRoundSavesNothing(t *testing.T) {
 	if a.Screen() != Home || len(x.log.deltas) != 0 || len(x.pairs.rounds) != 0 {
 		t.Errorf("esc midway: screen %v, saved %v %v", a.Screen(), x.log.deltas, x.pairs.rounds)
 	}
-	a, _ = press(t, a, "shift+tab", "shift+tab", "shift+tab") // Stats, Words, Pairs
+	a, _ = press(t, a, "shift+tab", "shift+tab", "shift+tab", "shift+tab") // Stats, Words, Speak, Pairs
 	mustContain(t, pageText(a), "Word 6 of 20")
 }
 
@@ -285,7 +285,7 @@ func TestPairsWithoutAudioSaysHowToTurnItOn(t *testing.T) {
 
 func TestPairsHelpAndTab(t *testing.T) {
 	a := newApp(t, deck(), &recorder{}, Pairs, 80, 24)
-	if !strings.Contains(screenLines(a)[0], "Listen Pairs Words") {
+	if !strings.Contains(screenLines(a)[0], "Listen Pairs Speak") {
 		t.Errorf("tab bar %q: want Pairs after Listen", screenLines(a)[0])
 	}
 	a, _ = press(t, a, "?")

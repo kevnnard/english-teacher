@@ -36,15 +36,16 @@ const (
 	Quiz
 	Listen
 	Pairs
+	Speak
 	Words
 	Stats
 )
 
 // screens is the order of the tabs and of tab / shift+tab.
-var screens = []Screen{Home, Review, Learn, Write, Talk, Fluency, Quiz, Listen, Pairs, Words, Stats}
+var screens = []Screen{Home, Review, Learn, Write, Talk, Fluency, Quiz, Listen, Pairs, Speak, Words, Stats}
 
 func (s Screen) String() string {
-	return [...]string{"Home", "Review", "Learn", "Write", "Talk", "Fluency", "Quiz", "Listen", "Pairs", "Words", "Stats"}[s]
+	return [...]string{"Home", "Review", "Learn", "Write", "Talk", "Fluency", "Quiz", "Listen", "Pairs", "Speak", "Words", "Stats"}[s]
 }
 
 // Config is what the app needs from the outside world.
@@ -64,6 +65,9 @@ type Config struct {
 
 	Speaker speech.Speaker // reads text aloud; nil when audio is not set up
 	Voices  []string       // the installed voice names; with two or more, Pairs alternates them
+
+	Recorder    speech.Recorder    // records the learner for Speak; nil when no recorder is found
+	Transcriber speech.Transcriber // writes down what the learner said; nil when whisper is not set up
 
 	PairStats   map[string]domain.PairStat // the learner's totals per minimal-pair contrast
 	RecordPairs RecordPairsFunc            // adds a round's results to the totals; nil saves nothing
@@ -110,6 +114,10 @@ type App struct {
 	dictation dictationState
 	voices    []string // installed voice names, for Pairs
 
+	recorder    speech.Recorder    // nil when no recorder is found
+	transcriber speech.Transcriber // nil when whisper is not set up
+	speaking    speakState
+
 	pairs       pairsState
 	pairStats   map[string]domain.PairStat // totals per contrast, as stored
 	recordPairs RecordPairsFunc
@@ -149,6 +157,9 @@ func NewApp(cfg Config) App {
 		add:     cfg.Add,
 		speaker: cfg.Speaker,
 		voices:  slices.Clone(cfg.Voices),
+
+		recorder:    cfg.Recorder,
+		transcriber: cfg.Transcriber,
 
 		pairStats:   maps.Clone(cfg.PairStats),
 		recordPairs: cfg.RecordPairs,
@@ -201,6 +212,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.gotGrammar(msg), nil
 	case spokenMsg:
 		return a.gotSpoken(msg), nil
+	case transcribedMsg:
+		return a.gotTranscript(msg), nil
 	}
 	return a, nil
 }
@@ -212,6 +225,9 @@ func (a App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	a.listen.notice = "" // an audio notice lasts until the next key
 	switch {
 	case k == "ctrl+c":
+		if rec := a.speaking.recording; rec != nil {
+			rec.Cancel() // a recorder must not outlive the app
+		}
 		return a, tea.Quit
 	case a.err != nil:
 		return a, tea.Quit // any key leaves the error screen
@@ -271,6 +287,8 @@ func (a App) typing() bool {
 		return a.quiz.typing()
 	case Listen:
 		return a.dictation.typing()
+	case Speak:
+		return a.speaking.typing()
 	}
 	return false
 }
@@ -299,6 +317,8 @@ func (a App) updateScreen(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return a.updateDictation(msg)
 	case Pairs:
 		return a.updatePairs(msg)
+	case Speak:
+		return a.updateSpeak(msg)
 	}
 	return a, nil
 }
