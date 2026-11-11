@@ -52,6 +52,21 @@ type fakeTeacher struct {
 	listening      teacher.Listening       // the answer of ListeningText
 	listeningErr   error                   // the error of ListeningText
 	listeningCalls []teacher.ListeningKind // the kind of every ListeningText call
+
+	cloze      teacher.ClozeQuiz // the answer of ClozeRound
+	clozeErr   error             // the error of ClozeRound
+	clozeCalls []clozeCall       // the arguments of every ClozeRound call
+}
+
+// clozeCall is what one ClozeRound call got.
+type clozeCall struct {
+	mistakes, sentences []string
+}
+
+func (f *fakeTeacher) ClozeRound(_ context.Context, l domain.Level, mistakes, sentences []string) (teacher.ClozeQuiz, error) {
+	f.level = l
+	f.clozeCalls = append(f.clozeCalls, clozeCall{slices.Clone(mistakes), slices.Clone(sentences)})
+	return f.cloze, f.clozeErr
 }
 
 func (f *fakeTeacher) ListeningText(_ context.Context, l domain.Level, known []string, kind teacher.ListeningKind) (teacher.Listening, error) {

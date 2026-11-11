@@ -23,11 +23,16 @@ type quizMode int
 const (
 	quizVocab   quizMode = iota // from the learner's own cards, no AI
 	quizGrammar                 // multiple-choice items from the teacher
+	quizCloze                   // grammar in context: typed gaps in sentences (spec S4)
 )
 
-// String is the mode as it reads in the activity log.
+// quizModes is how many quizzes the picker offers.
+const quizModes = 3
+
+// String is the mode as it reads in the activity log. A cloze round is a
+// grammar quiz too, so level readiness counts it.
 func (m quizMode) String() string {
-	if m == quizGrammar {
+	if m == quizGrammar || m == quizCloze {
 		return "grammar"
 	}
 	return "vocabulary"
@@ -71,6 +76,11 @@ type quizState struct {
 
 	notice string // why the chosen quiz cannot start
 	err    error  // the grammar request failed
+
+	chunkNote string   // cloze: what pressing a did with the chunk on screen
+	added     []string // cloze: the chunks added to the deck in this round
+	missed    []string // cloze: the chunks of missed items added at the end
+	missedErr error    // cloze: adding those chunks failed
 }
 
 // typing reports whether the keys belong to a typed answer.
@@ -101,6 +111,13 @@ type quizGrammarMsg struct {
 func (a App) startQuiz() (App, tea.Cmd) {
 	q := &a.quiz
 	q.notice = ""
+	if q.cursor == quizCloze {
+		if a.teacher == nil {
+			q.notice = "The AI teacher is off, so there is no grammar in context. Install Gentle Shell (the pi command) and see `teacher models`."
+			return a, nil
+		}
+		return a.askCloze()
+	}
 	if q.cursor == quizGrammar {
 		if a.teacher == nil {
 			q.notice = "The AI teacher is off, so there is no grammar quiz. Install Gentle Shell (the pi command) and see `teacher models`."
@@ -175,6 +192,9 @@ func (a *App) answer(ans quizAnswer) {
 	if q.mode == quizGrammar {
 		a.checkQuizzed(q.score(), len(q.questions))
 	}
+	if q.mode == quizCloze {
+		a.addMissedChunks()
+	}
 }
 
 func (a App) updateQuiz(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -184,15 +204,18 @@ func (a App) updateQuiz(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case quizPick:
 		switch k {
 		case "up", "k":
-			q.cursor, q.notice = quizVocab, ""
+			q.cursor, q.notice = max(q.cursor-1, quizVocab), ""
 		case "down", "j":
-			q.cursor, q.notice = quizGrammar, ""
+			q.cursor, q.notice = min(q.cursor+1, quizModes-1), ""
 		case "enter":
 			return a.startQuiz()
 		}
 	case quizFailed:
 		switch k {
 		case "enter":
+			if q.mode == quizCloze {
+				return a.askCloze()
+			}
 			return a.askGrammar()
 		case "n":
 			a.quiz = quizState{cursor: q.cursor, req: q.req, count: q.count}
@@ -216,7 +239,11 @@ func (a App) updateQuiz(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			q.input = editInput(q.input, msg)
 		}
 	case quizAnswered:
+		if k == "a" && q.questions[q.pos].chunk.Valid() {
+			q.chunkNote = a.addChunk(q.questions[q.pos].chunk)
+		}
 		if k == "enter" {
+			q.chunkNote = ""
 			if q.pos+1 < len(q.questions) {
 				q.pos++
 				q.phase = quizAsking

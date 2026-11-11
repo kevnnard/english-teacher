@@ -22,6 +22,11 @@ type quizQuestion struct {
 	answer  int      // multiple choice: the index of the right option
 	word    string   // the right answer
 	why     string   // grammar: why the answer is right, in Spanish
+
+	hint  string       // cloze: a clue shown with the gap, such as "go"; may be ""
+	point string       // cloze: the grammar point, shown only after the answer
+	chunk domain.Chunk // cloze: a fixed phrase the learner can add to Review; may be the zero Chunk
+	yours bool         // cloze: the sentence is the learner's own
 }
 
 // typed reports whether the learner types the answer instead of choosing it.

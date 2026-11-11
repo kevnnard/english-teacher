@@ -27,6 +27,7 @@ type Teacher interface {
 	CheckReading(ctx context.Context, level domain.Level) (teacher.CheckReading, error)
 	StoryChapter(ctx context.Context, level domain.Level, known []string, so teacher.StorySoFar) (teacher.StoryChapter, error)
 	ListeningText(ctx context.Context, level domain.Level, known []string, kind teacher.ListeningKind) (teacher.Listening, error)
+	ClozeRound(ctx context.Context, level domain.Level, mistakes, sentences []string) (teacher.ClozeQuiz, error)
 }
 
 // AddFunc stores new cards and returns how many words were new.

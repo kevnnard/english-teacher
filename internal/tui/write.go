@@ -140,6 +140,13 @@ func (a App) gotTask(msg taskMsg) App {
 // most counted kinds seen at least recurringCount times, in teacher.Kinds
 // order on a tie. "Other" says nothing to practice, so it never counts.
 func (a App) focus() []string {
+	kinds := a.recurringKinds()
+	return kinds[:min(len(kinds), focusKinds)]
+}
+
+// recurringKinds are the error kinds seen at least recurringCount times,
+// most frequent first, without OtherKind.
+func (a App) recurringKinds() []string {
 	var kinds []string
 	for _, k := range teacher.Kinds {
 		if k.Name != teacher.OtherKind && a.mistakeCounts[k.Name] >= recurringCount {
@@ -147,7 +154,7 @@ func (a App) focus() []string {
 		}
 	}
 	slices.SortStableFunc(kinds, func(x, y string) int { return a.mistakeCounts[y] - a.mistakeCounts[x] })
-	return kinds[:min(len(kinds), focusKinds)]
+	return kinds
 }
 
 // askCorrection sends the learner's text to the teacher.

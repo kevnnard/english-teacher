@@ -238,6 +238,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.gotFluencyTick(msg)
 	case quizGrammarMsg:
 		return a.gotGrammar(msg), nil
+	case quizClozeMsg:
+		return a.gotCloze(msg), nil
 	case checkReadingMsg:
 		return a.gotCheckReading(msg), nil
 	case spokenMsg:

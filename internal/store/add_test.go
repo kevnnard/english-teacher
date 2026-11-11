@@ -70,3 +70,26 @@ func TestAddCardsSkipsBlankWords(t *testing.T) {
 		t.Errorf("added = %d, %v", added, err)
 	}
 }
+
+func TestAddCardsStoresAChunkOnceInBothDirections(t *testing.T) {
+	s := openTemp(t)
+	ctx := context.Background()
+	chunk := domain.Chunk{Phrase: "I'm looking for…", Meaning: "Estoy buscando…", Use: "en una tienda", Example: "I'm looking for a jacket."}
+
+	first, err := s.AddCards(ctx, []domain.Card{chunk.Card()})
+	must(t, err)
+	again, err := s.AddCards(ctx, []domain.Card{chunk.Card()})
+	must(t, err)
+
+	if first != 1 || again != 0 {
+		t.Errorf("added %d then %d, want 1 then 0", first, again)
+	}
+	for _, d := range []domain.Direction{domain.Recognition, domain.Production} {
+		cards, err := s.ListCards(ctx, d)
+		must(t, err)
+		if len(cards) != 1 || cards[0].Word != "I'm looking for…" || cards[0].Meaning != "Estoy buscando… — en una tienda" ||
+			cards[0].Example != "I'm looking for a jacket." || cards[0].LastReviewed != nil {
+			t.Errorf("%v cards = %+v", d, cards)
+		}
+	}
+}

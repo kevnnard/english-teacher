@@ -31,6 +31,9 @@ func (a App) quizTitle() string {
 	if a.quiz.mode == quizGrammar {
 		return "Quiz · Grammar"
 	}
+	if a.quiz.mode == quizCloze {
+		return "Quiz · Grammar in context"
+	}
 	return "Quiz · Vocabulary"
 }
 
@@ -45,6 +48,7 @@ func (a App) quizPickerView(width int) string {
 	modes := []string{
 		fmt.Sprintf("Vocabulary · %d questions from your cards", vocabQuestions),
 		fmt.Sprintf("Grammar · %d questions from the teacher", teacher.GrammarItems),
+		fmt.Sprintf("Grammar in context · %d gaps in your sentences", teacher.ClozeItems),
 	}
 	for i, m := range modes {
 		if quizMode(i) == q.cursor {
@@ -56,6 +60,9 @@ func (a App) quizPickerView(width int) string {
 	about := "Choose the word or type it, from its Spanish meaning."
 	if q.cursor == quizGrammar {
 		about = "Practices: " + strings.Join(teacher.GrammarTopics(a.studyLevel(), a.focus()), ", ")
+	}
+	if q.cursor == quizCloze {
+		about = "Type the missing words, mixing: " + strings.Join(teacher.ClozePoints(a.studyLevel(), a.recurringKinds()), ", ")
 	}
 	b.WriteString("\n" + r.label.Render(ansi.Wordwrap(about, width, "")))
 	if q.notice != "" {
@@ -85,6 +92,9 @@ func (a App) quizQuestionView(width int) string {
 	var b strings.Builder
 	b.WriteString(r.title.Render(a.quizTitle()) + "\n")
 	progress := fmt.Sprintf("Question %d of %d · ✓ %d", q.pos+1, len(q.questions), q.score())
+	if q.mode == quizCloze { // no points here: each one shows after its answer
+		progress = fmt.Sprintf("Gap %d of %d · ✓ %d", q.pos+1, len(q.questions), q.score())
+	}
 	if q.mode == quizGrammar && len(q.topics) > 0 {
 		progress += " · " + strings.Join(q.topics, ", ")
 	}
@@ -95,6 +105,8 @@ func (a App) quizQuestionView(width int) string {
 		ans = &q.answers[q.pos]
 	}
 	switch {
+	case q.mode == quizCloze:
+		b.WriteString(a.clozePromptView(cur, width))
 	case q.mode == quizGrammar:
 		b.WriteString(r.target.Render(ansi.Wordwrap(cur.prompt, width, "")) + "\n\n")
 	case cur.typed():
@@ -117,7 +129,9 @@ func (a App) quizQuestionView(width int) string {
 	if ans == nil {
 		return b.String()
 	}
-	if cur.why != "" {
+	if q.mode == quizCloze {
+		b.WriteString(a.clozeFeedbackView(cur, *ans, width))
+	} else if cur.why != "" {
 		b.WriteString("\n" + indent(r.secondary.Render(ansi.Wordwrap(cur.why, width-2, "")), 2))
 	}
 	next := "Press enter for the next question."
@@ -185,6 +199,12 @@ func (a App) quizResultView(width int) string {
 	}
 	// One line for the score, so eight wrong grammar items still fit on 24 rows.
 	b.WriteString(score + r.label.Render("  ·  saved in today's log; your review dates did not change") + "\n")
+	if len(q.missed) > 0 {
+		b.WriteString(r.success.Render(ansi.Truncate("Added to Review: "+strings.Join(q.missed, ", "), width, "…")) + "\n")
+	}
+	if q.missedErr != nil {
+		b.WriteString(r.danger.Render(ansi.Truncate("✗ Could not add the chunks: "+q.missedErr.Error(), width, "…")) + "\n")
+	}
 
 	var wrong []string
 	for i, ans := range q.answers {
@@ -193,7 +213,10 @@ func (a App) quizResultView(width int) string {
 		}
 	}
 	if len(wrong) > 0 {
-		b.WriteString("\n" + r.secondary.Render("To review") + "\n" + strings.Join(wrong, "\n"))
+		if len(q.missed) == 0 && q.missedErr == nil { // with that line, eight wrong items still fit on 24 rows
+			b.WriteString("\n")
+		}
+		b.WriteString(r.secondary.Render("To review") + "\n" + strings.Join(wrong, "\n"))
 	}
 	return strings.TrimSuffix(b.String(), "\n")
 }
@@ -212,9 +235,13 @@ func (a App) wrongLine(cur quizQuestion, ans quizAnswer, width int) []string {
 	line := "  " + r.danger.Render("✗ ") + r.value.Render(cur.prompt) + r.label.Render(" → ") +
 		r.success.Render(cur.word) + r.label.Render(" · "+gave)
 	lines := []string{ansi.Truncate(line, width, "…")}
-	if cur.why != "" {
+	why := cur.why
+	if cur.point != "" {
+		why = cur.point + " · " + why
+	}
+	if why != "" {
 		// One line each: the full why was on the feedback page.
-		lines = append(lines, "    "+r.secondary.Render(ansi.Truncate(cur.why, max(width-4, 1), "…")))
+		lines = append(lines, "    "+r.secondary.Render(ansi.Truncate(why, max(width-4, 1), "…")))
 	}
 	return lines
 }
@@ -229,15 +256,63 @@ func (a App) quizHints() []string {
 	case quizFailed:
 		return []string{"enter try again", "n other quiz", "esc home"}
 	case quizAsking:
+		if q.mode == quizCloze {
+			return []string{"type the missing words", "enter check", "esc home"}
+		}
 		if q.questions[q.pos].typed() {
 			return []string{"type the word", "enter check", "esc home"}
 		}
 		return []string{"1–4 choose", "tab screens", "esc home"}
 	case quizAnswered:
+		next := "enter next"
 		if q.pos == len(q.questions)-1 {
-			return []string{"enter result", "tab screens", "esc home"}
+			next = "enter result"
 		}
-		return []string{"enter next", "tab screens", "esc home"}
+		if q.questions[q.pos].chunk.Valid() {
+			return []string{next, "a add the chunk", "esc home"}
+		}
+		return []string{next, "tab screens", "esc home"}
 	}
 	return []string{"n new quiz", "tab screens", "esc home"}
+}
+
+// clozePromptView is a cloze item before its answer: the sentence with its
+// gap, the hint in brackets and whether the sentence is the learner's own.
+// The grammar point is not shown yet, so the learner works out which rule
+// applies.
+func (a App) clozePromptView(cur quizQuestion, width int) string {
+	r := a.st.main
+	line := cur.prompt
+	if cur.hint != "" {
+		line += "  (" + cur.hint + ")"
+	}
+	s := r.secondary.Render("Type the missing words:") + "\n" +
+		indent(r.prompt.Render(ansi.Wordwrap(line, width-2, "")), 2) + "\n"
+	if cur.yours {
+		s += "  " + r.label.Render("from your own sentences") + "\n"
+	}
+	return s + "\n"
+}
+
+// clozeFeedbackView follows the check of a cloze answer: the grammar
+// point, with its rule in one line when the answer was wrong, then the
+// chunk of the item, if any, and what a did with it.
+func (a App) clozeFeedbackView(cur quizQuestion, ans quizAnswer, width int) string {
+	r := a.st.main
+	point := cur.point
+	if !ans.right && cur.why != "" {
+		point += " · " + cur.why
+	}
+	s := "\n  " + r.accent.Render(ansi.Truncate(point, max(width-2, 1), "…"))
+	if c := cur.chunk; c.Valid() {
+		s += "\n  " + r.value.Render(ansi.Truncate("Chunk: "+c.Phrase+" = "+c.Meaning, max(width-2, 1), "…"))
+		if note := a.quiz.chunkNote; note != "" {
+			style := r.success
+			if !strings.HasPrefix(note, "✓") {
+				style = r.label
+			}
+			s += "\n  " + style.Render(ansi.Truncate(note, max(width-2, 1), "…"))
+		}
+	}
+	return s
 }

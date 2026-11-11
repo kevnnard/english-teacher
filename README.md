@@ -46,7 +46,7 @@
 | ✍️ | **What am I getting wrong when I write?** | **Write**: fix your own errors, then rewrite them from memory |
 | 💬 | **Can I hold a simple conversation?** | **Talk**: guided role-plays with gentle recasts |
 | ⏱️ | **Can I say it faster?** | **Fluency**: the same story in 4, 3 and 2 minutes |
-| ✅ | **What do I really remember?** | **Quiz**: vocabulary from your cards, grammar on your errors |
+| ✅ | **What do I really remember?** | **Quiz**: vocabulary from your cards, grammar on your errors, gaps in your own sentences |
 | 🎧 | **Do I understand it when I hear it?** | **Listen**: dictation of your own example sentences, or long listening (`s`): a 2–5 minute dialogue or story (needs audio) |
 | 👂 | **Can I hear ship from sheep?** | **Pairs**: minimal pairs for Spanish speakers, weakest sounds first (needs audio) |
 | 🗣️ | **Do people understand what I say?** | **Speak**: say your own sentences; whisper marks each word it understood (needs audio and whisper) |
@@ -71,7 +71,7 @@ shell profile if `teacher` is not found. Building needs Go 1.27; no cgo.
 </details>
 
 Review, Fluency and the vocabulary quiz work offline. Learn, Write, Talk and
-the grammar quiz need [the AI teacher](#the-ai-teacher).
+the grammar quizzes need [the AI teacher](#the-ai-teacher).
 
 ## Quick start
 
@@ -115,8 +115,8 @@ never resets a review schedule, and keeps the name and goal you set.
 **Home** (one preselected next action), **Review** (cards due today),
 **Learn** (a short reading written for you), **Write** (a writing task you
 correct with the AI), **Talk** (a guided role-play with the AI), **Fluency** (the same story
-three times, faster each time), **Quiz** (vocabulary from your cards or
-grammar from the AI), **Listen** (dictation of your own sentences, with
+three times, faster each time), **Quiz** (vocabulary from your cards,
+grammar from the AI, or grammar in context: gaps in your own sentences), **Listen** (dictation of your own sentences, with
 audio), **Pairs** (minimal pairs like ship / sheep, with audio), **Speak**
 (say a sentence and see which words whisper understood, with audio and
 whisper), **Words** (every word with its status), **Stats** and **Level** (`l` on Home: readiness for the next level and the level check). Every screen is a notebook page: the top bar shows the date,
@@ -265,7 +265,7 @@ elsewhere; `n` picks a new topic between rounds or from the result.
 ### Quiz
 
 Quiz checks what you remember. It is retrieval practice, not grading: a
-quiz never changes your review dates. Pick one of two:
+quiz never changes your review dates. Pick one of three:
 
 - **Vocabulary** uses no AI, so it works without `pi`. It asks 10 words of
   your own deck (each word once, in a new order every time), alternating
@@ -282,12 +282,31 @@ quiz never changes your review dates. Pick one of two:
   present simple, articles, plurals, possessives). Items with a bad answer
   or the wrong number of options are dropped; fewer than 3 good ones is an
   error. If the call fails, the page says why and `enter` tries again.
+- **Grammar in context** asks the teacher for 8 gaps to type, mostly in
+  your own sentences: the story chapter in Learn and the examples of your
+  cards (the newest first; "from your own sentences" marks them). The
+  teacher writes new sentences where yours do not fit. A round mixes at
+  least 3 grammar points and never asks the same point twice in a row
+  (interleaving: you have to work out which rule applies); your two most
+  repeated grammar errors in Write come first and about twice as often,
+  then the core grammar of your level. The gap shows a hint such as the
+  base verb, but not the point: the point (`past simple`) shows after your
+  answer, and a wrong answer also shows the right one and the rule in one
+  line. The answer is checked like a typed one, forgiving case and spaces.
+  An item may come with a **chunk**, a fixed phrase worth learning whole
+  (`I'm looking for…`, `Could you…?`): `a` adds it to Review as a normal
+  card (front: the phrase; back: its meaning and use, and an example), and
+  at the end of the round the chunks of the items you missed are added for
+  you. A phrase already in your cards is never added twice. Without `pi`
+  the page says the AI teacher is off; if the round fails, the page says
+  why and `enter` tries again.
 
 After each answer you see ✓, or ✗ with the right answer and, for grammar,
 why in Spanish; `enter` moves on, and every key is a letter while you type
 an answer. The result shows your score (`8/10`) and the questions to look at
 again (a grammar item with its why). The quiz counts as study
-(`Quiz: vocabulary 8/10` or `Quiz: grammar 6/8`, at most 10 minutes) when
+(`Quiz: vocabulary 8/10` or `Quiz: grammar 6/8`; a grammar in context round
+is a grammar quiz too; at most 10 minutes) when
 you answer the last question; leaving earlier records nothing. `n` starts a
 new quiz; `esc` goes Home and keeps the quiz.
 
@@ -526,6 +545,7 @@ if unset). `--db path` before the command picks another file, e.g.
 - **Focused written feedback**: a few major errors, direct and explained, work better than marking everything.
 - **Self-correction, then rewriting**: trying first makes you notice the gap; rewriting from memory is what makes the fix stick.
 - **Recasts**: in conversation the right form is woven into the reply, so you keep talking.
+- **Interleaving and grammar in context**: mixing grammar points in one round makes you choose the rule, which sticks better than ten items of the same one; gaps in your own sentences keep the grammar tied to meaning, and chunks are learned whole, like words.
 - **4/3/2**: retelling the same story with less time builds fluency with words you already know.
 
 ## Keys
@@ -581,11 +601,11 @@ current screen.
 | | `ctrl+d` | end the round early; the time stops |
 | | `n` | a new topic between rounds or from the result |
 | | `esc` | back to Home; the clock keeps running |
-| Quiz | `↑` `↓` / `j` `k` | choose a vocabulary or a grammar quiz |
-| | `enter` | start it; after the feedback, the next question |
+| Quiz | `↑` `↓` / `j` `k` | choose vocabulary, grammar or grammar in context |
+| | `enter` | start it (again if it failed); then the next question |
 | | `1`–`4` | choose an option |
-| | `enter` | check a typed answer (empty: I don't know) |
-| | `enter` | after a failed grammar quiz: try again |
+| | `enter` | check a typed answer or gap (empty: I don't know) |
+| | `a` | in context: add the chunk shown to Review |
 | | `n` | a new quiz from the result |
 | | `p` | after an answer: listen to the right answer |
 | | `esc` | back to Home; the quiz stays |
