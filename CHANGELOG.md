@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Sync
+- `teacher sync push [user@]host` and `teacher sync pull [user@]host` copy
+  the whole database to or from another machine over the system `ssh`;
+  `--remote-db path` sets the database there (default
+  `~/.local/share/english-teacher/teacher.db`). Close teacher on both
+  machines before syncing.
+- It sends a consistent snapshot, checks it before replacing anything, and
+  replaces atomically; the old database is kept as `teacher.db.bak-<timestamp>`.
+- It refuses to replace a database with newer study activity (showing both
+  dates) unless `--force`, and refuses a database with a newer schema.
+
 ## 0.3.0 — 2026-11-11
 
 More input, a level that adapts, grammar in context, progress you can see,

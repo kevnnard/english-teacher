@@ -46,6 +46,8 @@ const usage = `usage:
   teacher [--db path] set name <name>              set your name
   teacher [--db path] set goal <minutes>           set the daily goal (default 20)
   teacher [--db path] set level <A1..C2>           set your level; its start date becomes today
+  teacher [--db path] sync push [user@]host        send this database to another machine over SSH
+  teacher [--db path] sync pull [user@]host        bring the other machine's database here
   teacher models                                   list the AI model of each capability
   teacher set model <capability> <provider/model>  reading, writing, conversation or quiz
   teacher setup voice                              download the default voice for speech
@@ -61,10 +63,15 @@ const usage = `usage:
 var version = "0.2.0"
 
 func main() {
-	if err := run(os.Args[1:], os.Stdout); err != nil {
-		fmt.Fprintln(os.Stderr, "teacher:", err)
-		os.Exit(1)
+	os.Exit(cli(os.Args[1:], os.Stdout, os.Stderr))
+}
+
+func cli(args []string, stdout, stderr io.Writer) int {
+	if err := run(args, stdout); err != nil {
+		fmt.Fprintln(stderr, "teacher:", err)
+		return 1
 	}
+	return 0
 }
 
 // run parses args and executes one subcommand, writing messages to stdout.
@@ -118,6 +125,8 @@ func run(args []string, stdout io.Writer) error {
 			return errors.New(usage)
 		}
 		return runDoctor(*configPath, stdout)
+	case "sync":
+		return runSync(*dbPath, rest, stdout)
 	case "review":
 		if len(rest) != 0 {
 			return errors.New(usage)

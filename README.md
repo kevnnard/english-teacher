@@ -97,6 +97,8 @@ teacher [--db path] import <progress-folder>     import the bank, level.md and h
 teacher [--db path] set name <name>              set your name
 teacher [--db path] set goal <minutes>           set the daily goal (default 20)
 teacher [--db path] set level <A1..C2>           set your level; its start date becomes today
+teacher [--db path] sync push [user@]host        send this database to another machine over SSH
+teacher [--db path] sync pull [user@]host        bring the other machine's database here
 teacher models                                   list the AI model of each capability
 teacher set model <capability> <provider/model>  reading, writing, conversation or quiz
 teacher setup voice                              download the default voice for speech
@@ -110,6 +112,36 @@ optional and safe to repeat: a vocabulary bank is a markdown file of words and
 meanings, and a progress folder adds `level.md`, `streak.md` and
 `daily-log.md` when present. Re-importing never duplicates cards or days,
 never resets a review schedule, and keeps the name and goal you set.
+
+## Syncing two machines
+
+`teacher sync` copies the whole database from one machine to the other over
+your own SSH. It never merges: the database on one side replaces the other.
+
+**Close teacher on both machines before syncing.**
+
+```bash
+teacher sync push mac        # send this database to mac
+teacher sync pull kev@mac    # bring the database of mac here
+```
+
+- It runs the system `ssh`, so `~/.ssh/config` aliases, keys and ports work.
+  The other machine needs only SSH and a POSIX shell; teacher and sqlite3 are
+  not needed there.
+- The database on the other machine is
+  `~/.local/share/english-teacher/teacher.db`; `--remote-db path` picks
+  another. This machine uses the usual `--db` path.
+- What is sent is a consistent snapshot, checked (integrity check, a teacher
+  database, a schema this teacher can read) before it replaces anything. The
+  replace writes a temp file next to the database and renames it, so a failure
+  at any step leaves the database as it was.
+- The database being replaced is kept next to it as
+  `teacher.db.bak-<timestamp>`. A missing database is created.
+- It refuses when the database being replaced has newer study activity than
+  the one being copied, and shows both dates. `--force` replaces it anyway.
+- It refuses an incoming database with a newer schema than the app on the
+  receiving side can read. When pushing, that is the schema of the database
+  already there: upgrade teacher on that machine and open it once first.
 
 ## The screens
 
