@@ -124,24 +124,15 @@ func PairRound(contrasts []Contrast, stats map[string]PairStat, n int, intn func
 		return nil
 	}
 	order := WeakestFirst(contrasts, stats)
-	weight := func(c Contrast) float64 { return PairWeight(stats[c.ID]) }
-
-	shares := pairShares(order, weight, n)
-	pairOrder := make([][]int, len(order)) // each contrast's shuffled pair indexes
+	weights, sizes := make([]float64, len(order)), make([]int, len(order))
 	for i, c := range order {
-		pairOrder[i] = shuffled(len(c.Pairs), intn)
+		weights[i], sizes[i] = PairWeight(stats[c.ID]), len(c.Pairs)
 	}
-
 	var items []PairItem
-	for round := 0; len(items) < n; round++ {
-		for i, c := range order {
-			if round >= shares[i] {
-				continue
-			}
-			p := pairOrder[i][round%len(pairOrder[i])]
-			items = append(items, PairItem{Contrast: c.ID, Pair: c.Pairs[p], Played: intn(2)})
-		}
-	}
+	weightedRound(weights, sizes, n, intn, func(g, k int) {
+		c := order[g]
+		items = append(items, PairItem{Contrast: c.ID, Pair: c.Pairs[k], Played: intn(2)})
+	})
 	return items
 }
 
@@ -154,28 +145,49 @@ func WeakestFirst(contrasts []Contrast, stats map[string]PairStat) []Contrast {
 	return order
 }
 
-// pairShares is how many of n items each contrast of order gets: steps
+// weightedRound is steps 2 to 4 of PairRound, shared with ProsodyRound:
+// groups come weakest first with their weights and their number of
+// items, each at least one. It shuffles each group's items with intn, then calls emit for
+// each of the n picks, round robin: emit(g, k) is item k of group g.
+func weightedRound(weights []float64, sizes []int, n int, intn func(int) int, emit func(g, k int)) {
+	shares := pairShares(weights, n)
+	itemOrder := make([][]int, len(sizes)) // each group's shuffled item indexes
+	for i, size := range sizes {
+		itemOrder[i] = shuffled(size, intn)
+	}
+	for round, picked := 0, 0; picked < n; round++ {
+		for i := range sizes {
+			if round >= shares[i] {
+				continue
+			}
+			emit(i, itemOrder[i][round%sizes[i]])
+			picked++
+		}
+	}
+}
+
+// pairShares is how many of n items each group of weights gets: steps
 // 2 and 3 of PairRound. The shares add up to n.
-func pairShares(order []Contrast, weight func(Contrast) float64, n int) []int {
-	shares := make([]int, len(order))
-	first := min(minPairContrasts, len(order), n)
+func pairShares(weights []float64, n int) []int {
+	shares := make([]int, len(weights))
+	first := min(minPairContrasts, len(weights), n)
 	for i := range first {
 		shares[i] = 1
 	}
 	rest := n - first
 	total := 0.0
-	for _, c := range order {
-		total += weight(c)
+	for _, w := range weights {
+		total += w
 	}
-	remainders := make([]float64, len(order))
+	remainders := make([]float64, len(weights))
 	given := 0
-	for i, c := range order {
-		quota := float64(rest) * weight(c) / total
+	for i, w := range weights {
+		quota := float64(rest) * w / total
 		shares[i] += int(quota)
 		given += int(quota)
 		remainders[i] = quota - float64(int(quota))
 	}
-	byRemainder := make([]int, len(order))
+	byRemainder := make([]int, len(weights))
 	for i := range byRemainder {
 		byRemainder[i] = i
 	}
@@ -214,10 +226,20 @@ func shuffled(n int, intn func(int) int) []int {
 // the contrasts first came up. right[i] is whether items[i] was answered
 // right; items without an answer are not counted.
 func TallyPairs(items []PairItem, right []bool) []PairStat {
+	ids := make([]string, len(items))
+	for i, it := range items {
+		ids[i] = it.Contrast
+	}
+	return tally(ids, right)
+}
+
+// tally counts right answers per id, in the order the ids first came up;
+// right[i] is the answer of ids[i]. TallyPairs and TallyProsody use it.
+func tally(ids []string, right []bool) []PairStat {
 	var out []PairStat
 	at := map[string]int{}
-	for i, ok := range right[:min(len(right), len(items))] {
-		id := items[i].Contrast
+	for i, ok := range right[:min(len(right), len(ids))] {
+		id := ids[i]
 		j, seen := at[id]
 		if !seen {
 			j = len(out)
