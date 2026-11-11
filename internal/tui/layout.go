@@ -122,6 +122,9 @@ func (a App) screenView(w, h int) string {
 	case Quiz:
 		return a.quizView(w)
 	case Listen:
+		if a.long.on {
+			return a.longView(w, h)
+		}
 		return a.dictationView(w)
 	case Pairs:
 		return a.pairsView(w)
@@ -251,6 +254,9 @@ func (a App) hints() []string {
 	case Quiz:
 		return withListen(a.quizHints(), a.listenHints())
 	case Listen:
+		if a.long.on {
+			return a.longHints() // its own p says the selected sentence
+		}
 		return a.dictationHints() // its own ctrl+p and ctrl+s say the sentence
 	case Pairs:
 		return a.pairsHints() // its own p and s say the word

@@ -21,11 +21,13 @@ type spoken struct {
 // fakeSpeaker records what the app asks it to say; it never plays audio.
 type fakeSpeaker struct {
 	said []spoken
-	err  error // what every Say returns
+	ctxs []context.Context // the context of every Say, to check cancellation
+	err  error             // what every Say returns
 }
 
-func (f *fakeSpeaker) Say(_ context.Context, text string, opts speech.Options) error {
+func (f *fakeSpeaker) Say(ctx context.Context, text string, opts speech.Options) error {
 	f.said = append(f.said, spoken{text, opts})
+	f.ctxs = append(f.ctxs, ctx)
 	return f.err
 }
 

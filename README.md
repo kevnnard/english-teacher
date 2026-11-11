@@ -47,7 +47,7 @@
 | 💬 | **Can I hold a simple conversation?** | **Talk**: guided role-plays with gentle recasts |
 | ⏱️ | **Can I say it faster?** | **Fluency**: the same story in 4, 3 and 2 minutes |
 | ✅ | **What do I really remember?** | **Quiz**: vocabulary from your cards, grammar on your errors |
-| 🎧 | **Do I understand it when I hear it?** | **Listen**: dictation of your own example sentences (needs audio) |
+| 🎧 | **Do I understand it when I hear it?** | **Listen**: dictation of your own example sentences, or long listening (`s`): a 2–5 minute dialogue or story (needs audio) |
 | 👂 | **Can I hear ship from sheep?** | **Pairs**: minimal pairs for Spanish speakers, weakest sounds first (needs audio) |
 | 🗣️ | **Do people understand what I say?** | **Speak**: say your own sentences; whisper marks each word it understood (needs audio and whisper) |
 | 🔥 | **Am I keeping it up?** | **Home** and **Stats**: streak, daily goal and study log |
@@ -307,6 +307,28 @@ score (`7/10`) and the sentences to practice. It counts as study
 it never changes your review dates. With fewer than 3 sentences, or
 without audio, the page says how to get them.
 
+### Long listening
+
+`s` on Listen switches between dictation and long listening (extensive
+listening); `s` again goes back, and both keep their place. It needs
+[audio](#audio-optional) and the [AI teacher](#the-ai-teacher): without a
+voice the page shows the audio-off notice and asks the AI nothing.
+
+1. **Listen.** The teacher writes a dialogue between 2 people or a short
+   story (in turns), about 250–600 words at your level, with the same limit
+   on new words as a story chapter. It plays sentence by sentence and you
+   see only how far it is (`Sentence 4 of 18`), never the words. `space`
+   pauses and goes on (from the sentence it stopped), `r` replays it all.
+   With 2 or more voices installed, each person in a dialogue keeps one.
+2. **Answer.** Once it has played to the end, `enter` opens 3–5 questions,
+   answered with `1`–`3`. The last answer counts as study
+   (`Listening: 2/3`, at most 30 minutes).
+3. **Read.** `enter` shows the transcript with who says each sentence:
+   `↑ ↓` choose one, `p` hears it again, `p p` slower. `n` asks for a new
+   text.
+
+`esc`, `tab` or any other way off the screen stops the voice at once.
+
 ### Pairs
 
 Pairs trains your ear on the English sounds that are one sound in Spanish,
@@ -499,6 +521,7 @@ if unset). `--db path` before the command picks another file, e.g.
 - **Four strands** (Nation): meaning-focused input (Learn), meaning-focused output (Write, Talk), language-focused learning (Review, Quiz) and fluency (Fluency), in roughly equal time.
 - **Spaced repetition** (SM-2): each word comes back just before you would forget it, in both directions.
 - **Graded reading**: at about 98% known words you learn the rest from context; Learn adds at most 3 new ones.
+- **Extensive listening**: hearing a long, easy text before reading it trains you to follow speech in real time; the transcript afterwards shows what you missed.
 - **Extensive reading**: lots of easy, interesting text builds vocabulary and reading speed; stories in chapters keep you reading, and the weekly count of words read makes the volume visible.
 - **Focused written feedback**: a few major errors, direct and explained, work better than marking everything.
 - **Self-correction, then rewriting**: trying first makes you notice the gap; rewriting from memory is what makes the fix stick.
@@ -571,6 +594,10 @@ current screen.
 | | `enter` | check what you typed (empty: I don't know) |
 | | `n` | a new dictation from the result |
 | | `esc` | back to Home; the dictation stays |
+| | `s` | long listening (a 2–5 minute dialogue or story); `s` again: dictation |
+| | `space` / `r` | long listening: pause / go on · replay it all |
+| | `enter` / `1`–`3` | after listening to the end: the questions; answer them |
+| | `↑ ↓` / `p` | in the transcript: choose a sentence / hear it (`p p` slower) |
 | Pairs | `enter` | start a round; after the feedback, the next word |
 | | `1` / `2` | choose which word you heard; after it, hear each one |
 | | `p` / `s` | hear the word again / slower |

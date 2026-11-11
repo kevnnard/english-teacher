@@ -48,6 +48,16 @@ type fakeTeacher struct {
 	chapters   []teacher.StoryChapter // the answers of StoryChapter, in order; the last one repeats
 	storyErr   error                  // the error of StoryChapter
 	storyCalls []teacher.StorySoFar   // the story so far of every StoryChapter call
+
+	listening      teacher.Listening       // the answer of ListeningText
+	listeningErr   error                   // the error of ListeningText
+	listeningCalls []teacher.ListeningKind // the kind of every ListeningText call
+}
+
+func (f *fakeTeacher) ListeningText(_ context.Context, l domain.Level, known []string, kind teacher.ListeningKind) (teacher.Listening, error) {
+	f.level, f.known = l, known
+	f.listeningCalls = append(f.listeningCalls, kind)
+	return f.listening, f.listeningErr
 }
 
 func (f *fakeTeacher) StoryChapter(_ context.Context, l domain.Level, known []string, so teacher.StorySoFar) (teacher.StoryChapter, error) {

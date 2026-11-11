@@ -43,6 +43,9 @@ func (a App) dictationIntroView(width int) string {
 		b.WriteString(r.value.Render(fmt.Sprintf("%d sentences from your cards", n)) + "\n")
 		b.WriteString(r.label.Render(ansi.Wordwrap("Each one plays when it appears. ctrl+p plays it again, ctrl+s slower. Press enter to start.", width, "")))
 	}
+	if a.speaker != nil {
+		b.WriteString("\n\n" + r.secondary.Render(ansi.Wordwrap("Or press s for long listening: a dialogue or a story of 2–5 minutes, then questions.", width, "")))
+	}
 	return b.String()
 }
 
@@ -127,10 +130,19 @@ func (a App) dictationHints() []string {
 		}
 		return []string{next, "ctrl+p again", "ctrl+s slower", "tab screens", "esc home"}
 	case dictationResult:
-		return []string{"n new dictation", "tab screens", "esc home"}
+		return withLong(a, []string{"n new dictation", "tab screens", "esc home"})
 	}
 	if a.canDictate() {
-		return []string{"enter start", "tab screens", "esc home"}
+		return withLong(a, []string{"enter start", "tab screens", "esc home"})
 	}
-	return []string{"tab screens", "esc home", "? help"}
+	return withLong(a, []string{"tab screens", "esc home", "? help"})
+}
+
+// withLong offers long listening after the screen's own keys when there
+// is audio; without it, Listen looks as before.
+func withLong(a App, hints []string) []string {
+	if a.speaker == nil {
+		return hints
+	}
+	return withListen(hints, []string{"s long listening"})
 }

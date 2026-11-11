@@ -60,7 +60,7 @@ func (a App) listenTexts() []string {
 			return []string{q.questions[q.pos].word}
 		}
 	case Listen:
-		if d := a.dictation; d.phase == dictationAnswered {
+		if d := a.dictation; !a.long.on && d.phase == dictationAnswered {
 			return []string{d.items[d.pos]}
 		}
 	}
@@ -142,15 +142,20 @@ func (a App) speak(texts []string) (App, tea.Cmd) {
 		a.listen.notice = audioOffNotice
 		return a, nil
 	}
+	return a, a.say(texts, speech.Options{Slow: a.slowAgain(texts)})
+}
+
+// slowAgain reports whether texts are what the last play asked for, less
+// than slowRepeat ago, so this play is slower; it remembers this play. A
+// third press is normal speed again.
+func (a *App) slowAgain(texts []string) bool {
 	now := a.now()
-	opts := speech.Options{
-		Slow: slices.Equal(texts, a.listen.texts) && now.Sub(a.listen.at) < slowRepeat,
-	}
+	slow := slices.Equal(texts, a.listen.texts) && now.Sub(a.listen.at) < slowRepeat
 	a.listen.texts, a.listen.at = texts, now
-	if opts.Slow {
-		a.listen.at = time.Time{} // a third press is normal speed again
+	if slow {
+		a.listen.at = time.Time{}
 	}
-	return a, a.say(texts, opts)
+	return slow
 }
 
 // say returns a command that says texts one after the other with opts,

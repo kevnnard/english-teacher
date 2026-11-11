@@ -30,6 +30,7 @@ func TestGolden(t *testing.T) {
 		{name: "review-done", cards: deck(), start: Review,
 			keys: []string{"space", "1", "space", "1", "space", "3", "space", "3", "space", "4"}},
 		{name: "listen-no-audio", cards: deck(), start: Listen},
+		{name: "listen-long-no-audio", cards: deck(), start: Listen, keys: []string{"s"}},
 		{name: "pairs-no-audio", cards: deck(), start: Pairs},
 		{name: "speak-no-audio", cards: deck(), start: Speak},
 	}

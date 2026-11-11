@@ -126,7 +126,8 @@ type App struct {
 	speaker   speech.Speaker // nil when audio is not set up
 	listen    listenState
 	dictation dictationState
-	voices    []string // installed voice names, for Pairs
+	long      longState // the long listening in Listen
+	voices    []string  // installed voice names, for Pairs
 
 	recorder    speech.Recorder    // nil when no recorder is found
 	transcriber speech.Transcriber // nil when whisper is not set up
@@ -210,7 +211,15 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.BackgroundColorMsg:
 		a.st = newStyles(msg.IsDark())
 	case tea.KeyPressMsg:
-		return a.handleKey(msg)
+		m, cmd := a.handleKey(msg)
+		if next, ok := m.(App); ok {
+			return next.stopLongWhenAway(), cmd // esc, tab or : left the screen
+		}
+		return m, cmd
+	case listeningMsg:
+		return a.gotListening(msg)
+	case lineSpokenMsg:
+		return a.gotLineSpoken(msg)
 	case readingMsg:
 		return a.gotReading(msg), nil
 	case chapterMsg:
@@ -255,6 +264,7 @@ func (a App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				rec.Cancel()
 			}
 		}
+		a.long.stop() // and neither must a voice
 		return a, tea.Quit
 	case a.err != nil:
 		return a, tea.Quit // any key leaves the error screen
@@ -313,7 +323,7 @@ func (a App) typing() bool {
 	case Quiz:
 		return a.quiz.typing()
 	case Listen:
-		return a.dictation.typing()
+		return !a.long.on && a.dictation.typing()
 	case Speak:
 		return a.speaking.typing()
 	}
@@ -346,6 +356,12 @@ func (a App) updateScreen(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case Quiz:
 		return a.updateQuiz(msg)
 	case Listen:
+		if a.long.on {
+			return a.updateLong(msg)
+		}
+		if msg.String() == "s" && !a.dictation.typing() {
+			return a.toggleLong() // while typing, s is a letter of the answer
+		}
 		return a.updateDictation(msg)
 	case Pairs:
 		return a.updatePairs(msg)
