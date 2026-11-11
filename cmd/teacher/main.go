@@ -356,7 +356,7 @@ func loadCards(ctx context.Context, st *store.Store) ([]domain.Card, error) {
 }
 
 // appConfig loads what the app needs from the store and wires saving,
-// study recording and the writing error log back to it.
+// study recording, the writing error log and the pair stats back to it.
 func appConfig(ctx context.Context, st *store.Store, opts appOptions) (tui.Config, error) {
 	cards, err := loadCards(ctx, st)
 	if err != nil {
@@ -371,6 +371,10 @@ func appConfig(ctx context.Context, st *store.Store, opts appOptions) (tui.Confi
 		return tui.Config{}, err
 	}
 	mistakes, err := st.MistakeCounts(ctx)
+	if err != nil {
+		return tui.Config{}, err
+	}
+	pairStats, err := st.PairStats(ctx)
 	if err != nil {
 		return tui.Config{}, err
 	}
@@ -389,10 +393,16 @@ func appConfig(ctx context.Context, st *store.Store, opts appOptions) (tui.Confi
 		Record:  func(d domain.Day) error { return st.RecordStudy(ctx, d) },
 		Teacher: teacher.New(conf.models()),
 		Speaker: conf.speaker(),
+		Voices:  conf.voices(),
 		Add:     func(c []domain.Card) (int, error) { return st.AddCards(ctx, c) },
 
 		MistakeCounts:  mistakes,
 		RecordMistakes: func(m []domain.Mistake) error { return st.RecordMistakes(ctx, m) },
+
+		PairStats: pairStats,
+		RecordPairs: func(r []domain.PairStat) error {
+			return st.RecordPairResults(ctx, domain.DateOf(time.Now()), r)
+		},
 	}, nil
 }
 

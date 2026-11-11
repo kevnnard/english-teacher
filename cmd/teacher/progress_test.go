@@ -292,3 +292,35 @@ func TestAppConfigLoadsAndRecordsMistakes(t *testing.T) {
 		t.Errorf("RecordMistakes did not reach the store: %v", counts)
 	}
 }
+
+func TestAppConfigLoadsAndRecordsPairStatsAndVoices(t *testing.T) {
+	data, _ := isolate(t)
+	voices := filepath.Join(data, "english-teacher", "voices")
+	os.MkdirAll(voices, 0o755)
+	os.WriteFile(filepath.Join(voices, "en_US-amy-medium.onnx"), []byte("x"), 0o644)
+	db := filepath.Join(t.TempDir(), "teacher.db")
+	st := openDB(t, db)
+	ctx := context.Background()
+	nov9 := domain.Date{Year: 2026, Month: 11, Day: 9}
+	if err := st.RecordPairResults(ctx, nov9, []domain.PairStat{{Contrast: "b-v", Attempts: 3, Correct: 1}}); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := appConfig(ctx, st, appOptions{dbPath: db, configPath: filepath.Join(t.TempDir(), "config.json")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.PairStats["b-v"].Attempts != 3 || len(cfg.PairStats) != 1 {
+		t.Errorf("PairStats = %v", cfg.PairStats)
+	}
+	if strings.Join(cfg.Voices, ",") != "en_US-amy-medium" {
+		t.Errorf("Voices = %q", cfg.Voices)
+	}
+	if err := cfg.RecordPairs([]domain.PairStat{{Contrast: "b-v", Attempts: 2, Correct: 2}}); err != nil {
+		t.Fatal(err)
+	}
+	stats, _ := st.PairStats(ctx)
+	if stats["b-v"] != (domain.PairStat{Contrast: "b-v", Attempts: 5, Correct: 3}) {
+		t.Errorf("RecordPairs did not reach the store: %v", stats)
+	}
+}

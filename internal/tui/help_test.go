@@ -17,6 +17,7 @@ func TestHelpShowsTheKeysOfTheCurrentScreen(t *testing.T) {
 		{Fluency, "end the round early", "finish the role-play early"},
 		{Quiz, "choose an option", "end the round early"},
 		{Listen, "hear it slower", "choose an option"},
+		{Pairs, "which word you heard", "hear it slower"},
 	}
 	for _, tt := range tests {
 		x := newAIApp(t, tt.screen)

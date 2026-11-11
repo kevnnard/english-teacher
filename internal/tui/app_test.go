@@ -27,7 +27,11 @@ func TestHeaderShowsDateContextAndTabs(t *testing.T) {
 
 		top := screenLines(a)[0]
 
-		mustContain(t, top, "Monday 9 Nov", "Home", "Review", "Words", "Stats")
+		date := "Monday 9 Nov"
+		if width == 80 {
+			date = "Mon 9 Nov" // eleven tabs leave room only for the short date
+		}
+		mustContain(t, top, date, "Home", "Review", "Words", "Stats")
 	}
 }
 
@@ -184,7 +188,7 @@ func TestTabCyclesScreens(t *testing.T) {
 		a, _ = press(t, a, "tab")
 		visited = append(visited, a.Screen())
 	}
-	want := []Screen{Review, Learn, Write, Talk, Fluency, Quiz, Listen, Words, Stats, Home}
+	want := []Screen{Review, Learn, Write, Talk, Fluency, Quiz, Listen, Pairs, Words, Stats, Home}
 	if fmt.Sprint(visited) != fmt.Sprint(want) {
 		t.Errorf("tab visited %v, want %v", visited, want)
 	}

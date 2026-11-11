@@ -19,7 +19,7 @@
 </p>
 
 ```text
- Monday 9 Nov  ·  Home            Home  Review  Learn  Write  Talk  Fluency  Quiz  Listen  Words  Stats
+ Monday 9 Nov  ·  Home     Home  Review  Learn  Write  Talk  Fluency  Quiz  Listen  Pairs  Words  Stats
       │
       │   Good evening.
       │
@@ -47,6 +47,7 @@
 | ⏱️ | **Can I say it faster?** | **Fluency**: the same story in 4, 3 and 2 minutes |
 | ✅ | **What do I really remember?** | **Quiz**: vocabulary from your cards, grammar on your errors |
 | 🎧 | **Do I understand it when I hear it?** | **Listen**: dictation of your own example sentences (needs audio) |
+| 👂 | **Can I hear ship from sheep?** | **Pairs**: minimal pairs for Spanish speakers, weakest sounds first (needs audio) |
 | 🔥 | **Am I keeping it up?** | **Home** and **Stats**: streak, daily goal and study log |
 
 ## Install
@@ -110,9 +111,10 @@ never resets a review schedule, and keeps the name and goal you set.
 correct with the AI), **Talk** (a guided role-play with the AI), **Fluency** (the same story
 three times, faster each time), **Quiz** (vocabulary from your cards or
 grammar from the AI), **Listen** (dictation of your own sentences, with
-audio), **Words** (every word with its status) and **Stats**. Every screen is a notebook page: the top bar shows the date,
+audio), **Pairs** (minimal pairs like ship / sheep, with audio), **Words** (every word with its status) and **Stats**. Every screen is a notebook page: the top bar shows the date,
 the page ("Page 3 of 26" during a review) and the screen tabs (on 80
-columns the page name, which the active tab already shows, makes room for them); a margin line
+columns the page name, which the active tab already shows, and then the
+long date make room for them); a margin line
 runs down the left (6 columns in from the edge on terminals 100+ columns
 wide, 2 on narrower ones) and the text never gets wider than 76 columns.
 
@@ -286,6 +288,40 @@ score (`7/10`) and the sentences to practice. It counts as study
 it never changes your review dates. With fewer than 3 sentences, or
 without audio, the page says how to get them.
 
+### Pairs
+
+Pairs trains your ear on the English sounds that are one sound in Spanish,
+and needs [audio](#audio-optional). A round plays 20 words, one by one;
+each comes from a pair of real words that differ in one sound, shown as
+`1 ship   2 sheep`, and you press `1` or `2` for the one you heard. Each
+word plays when it appears; `p` plays it again and `s` slower. Then you see
+✓, or ✗ "You heard: sheep" with a tip in Spanish on how to make the
+difference; `1` and `2` now play each word so you can compare, and `enter`
+goes on. The contrasts:
+
+| Contrast | Pairs |
+|---|---|
+| i corta / i larga | ship / sheep, live / leave, sit / seat, fill / feel |
+| u corta / u larga | full / fool, pull / pool, look / Luke |
+| a de cat / a de cut | cat / cut, hat / hut, bag / bug, cap / cup |
+| b / v | bat / vat, berry / very, ban / van, best / vest |
+| th / s | think / sink, thick / sick, path / pass, mouth / mouse |
+| th suave / d | they / day, then / den, though / dough |
+| verbo / verbo + -ed | work / worked, walk / walked, play / played, open / opened |
+| s + consonante / e + s | state / estate, steam / esteem, special / especial |
+
+Your results per contrast are kept, and the next round starts with your
+weakest: each contrast gets items by weight `1 + 9 × (wrong + 1) / (heard + 2)`
+(an unseen one counts as half wrong), the three weakest always get at least
+one, and the words go round robin, weakest first. With two or more voices
+in the voices folder, the words take turns between them, which trains the
+ear better than one voice; add one with the files of, for example,
+[en_US-amy-medium](https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/amy/medium)
+(the `.onnx` and `.onnx.json`). The result shows your score (`17/20`), each
+contrast of the round and the weakest one with its tip. A round counts as
+study (`Pairs: 17/20`, at most 10 minutes) and saves your results when you
+answer the last word; a round left midway saves nothing.
+
 ## Configuration and data
 
 Models live in `$XDG_CONFIG_HOME/english-teacher/config.json`
@@ -320,6 +356,7 @@ Press `p` to listen; `p` twice within 2 seconds plays the same text slower.
 | Write | the right version of the first error you did not fix (feedback), or of the one you just rewrote |
 | Quiz | the right answer, once you have answered |
 | Listen | the sentence, once checked (while typing: `ctrl+p`, `ctrl+s` slower) |
+| Pairs | the word played (`s` slower); after the answer, `1` and `2` play each word |
 
 While you type, `p` is a letter. Without audio, `p` shows
 "Audio is off: run `teacher doctor`" and nothing else changes.
@@ -403,6 +440,11 @@ current screen.
 | | `enter` | check what you typed (empty: I don't know) |
 | | `n` | a new dictation from the result |
 | | `esc` | back to Home; the dictation stays |
+| Pairs | `enter` | start a round; after the feedback, the next word |
+| | `1` / `2` | choose which word you heard; after it, hear each one |
+| | `p` / `s` | hear the word again / slower |
+| | `n` | a new round from the result |
+| | `esc` | back to Home; the round stays (saved only at the end) |
 | Words | `/` | filter by word or meaning (`enter` keep · `esc` clear) |
 | | `↑` `↓` / `j` `k` | scroll |
 

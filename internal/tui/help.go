@@ -92,6 +92,13 @@ var helpSections = []helpSection{
 		{"n", "a new dictation from the result"},
 		{"esc", "back to Home; the dictation stays"},
 	}},
+	{"Pairs", [][2]string{
+		{"enter", "start a round; after the feedback, the next word"},
+		{"1 / 2", "choose which word you heard; after it, hear each one"},
+		{"p / s", "hear the word again / slower"},
+		{"n", "a new round from the result"},
+		{"esc", "back to Home; the round stays (saved only at the end)"},
+	}},
 	{"Words", [][2]string{
 		{"/", "filter by word or meaning (enter keep · esc clear)"},
 		{"↑ ↓ / j k", "scroll"},

@@ -35,15 +35,16 @@ const (
 	Fluency
 	Quiz
 	Listen
+	Pairs
 	Words
 	Stats
 )
 
 // screens is the order of the tabs and of tab / shift+tab.
-var screens = []Screen{Home, Review, Learn, Write, Talk, Fluency, Quiz, Listen, Words, Stats}
+var screens = []Screen{Home, Review, Learn, Write, Talk, Fluency, Quiz, Listen, Pairs, Words, Stats}
 
 func (s Screen) String() string {
-	return [...]string{"Home", "Review", "Learn", "Write", "Talk", "Fluency", "Quiz", "Listen", "Words", "Stats"}[s]
+	return [...]string{"Home", "Review", "Learn", "Write", "Talk", "Fluency", "Quiz", "Listen", "Pairs", "Words", "Stats"}[s]
 }
 
 // Config is what the app needs from the outside world.
@@ -62,6 +63,10 @@ type Config struct {
 	Add     AddFunc // stores cards the teacher made; nil adds nothing
 
 	Speaker speech.Speaker // reads text aloud; nil when audio is not set up
+	Voices  []string       // the installed voice names; with two or more, Pairs alternates them
+
+	PairStats   map[string]domain.PairStat // the learner's totals per minimal-pair contrast
+	RecordPairs RecordPairsFunc            // adds a round's results to the totals; nil saves nothing
 
 	MistakeCounts  map[string]int     // logged major writing errors per kind
 	RecordMistakes RecordMistakesFunc // logs major writing errors; nil logs nothing
@@ -70,6 +75,10 @@ type Config struct {
 // RecordMistakesFunc logs the major errors of one text, like
 // store.RecordMistakes.
 type RecordMistakesFunc func([]domain.Mistake) error
+
+// RecordPairsFunc adds the results of one minimal-pairs round to the
+// learner's totals, like store.RecordPairResults.
+type RecordPairsFunc func([]domain.PairStat) error
 
 // DefaultMaxNew is the usual cap on new cards in one session.
 const DefaultMaxNew = 20
@@ -99,6 +108,11 @@ type App struct {
 	speaker   speech.Speaker // nil when audio is not set up
 	listen    listenState
 	dictation dictationState
+	voices    []string // installed voice names, for Pairs
+
+	pairs       pairsState
+	pairStats   map[string]domain.PairStat // totals per contrast, as stored
+	recordPairs RecordPairsFunc
 
 	screen        Screen
 	width, height int // terminal size; zero until the first WindowSizeMsg
@@ -134,6 +148,10 @@ func NewApp(cfg Config) App {
 		teacher: cfg.Teacher,
 		add:     cfg.Add,
 		speaker: cfg.Speaker,
+		voices:  slices.Clone(cfg.Voices),
+
+		pairStats:   maps.Clone(cfg.PairStats),
+		recordPairs: cfg.RecordPairs,
 
 		mistakeCounts:  maps.Clone(cfg.MistakeCounts),
 		recordMistakes: cfg.RecordMistakes,
@@ -279,6 +297,8 @@ func (a App) updateScreen(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return a.updateQuiz(msg)
 	case Listen:
 		return a.updateDictation(msg)
+	case Pairs:
+		return a.updatePairs(msg)
 	}
 	return a, nil
 }

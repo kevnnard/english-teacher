@@ -52,6 +52,26 @@ func (c config) speaker() speech.Speaker {
 	return s
 }
 
+// installedVoices are the names of the voice models in dir (each
+// <name>.onnx), sorted; none when dir is missing. Pairs alternates them
+// when there are two or more.
+func installedVoices(dir string) []string {
+	files, err := filepath.Glob(filepath.Join(dir, "*.onnx"))
+	if err != nil {
+		return nil
+	}
+	names := make([]string, 0, len(files))
+	for _, f := range files {
+		names = append(names, strings.TrimSuffix(filepath.Base(f), ".onnx"))
+	}
+	return names // Glob returns sorted paths
+}
+
+// voices are the installed voice names, from the voices folder.
+func (c config) voices() []string {
+	return installedVoices(c.speechSetup().VoicesDir)
+}
+
 // runSetup sets up one optional capability; today only "voice".
 func runSetup(args []string, stdout io.Writer) error {
 	if len(args) != 1 || args[0] != "voice" {

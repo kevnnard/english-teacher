@@ -123,6 +123,8 @@ func (a App) screenView(w, h int) string {
 		return a.quizView(w)
 	case Listen:
 		return a.dictationView(w)
+	case Pairs:
+		return a.pairsView(w)
 	default:
 		return a.st.main.title.Render(a.screen.String())
 	}
@@ -245,6 +247,8 @@ func (a App) hints() []string {
 		return withListen(a.quizHints(), a.listenHints())
 	case Listen:
 		return a.dictationHints() // its own ctrl+p and ctrl+s say the sentence
+	case Pairs:
+		return a.pairsHints() // its own p and s say the word
 	case Words:
 		if a.words.filtering {
 			return []string{"type to filter", "enter keep", "esc clear"}

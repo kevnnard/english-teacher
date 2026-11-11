@@ -251,3 +251,18 @@ func TestSpeakerIsNilWithoutAudio(t *testing.T) {
 		t.Error("speaker = nil with piper, a voice and a player")
 	}
 }
+
+func TestInstalledVoicesListsTheModelsInTheFolder(t *testing.T) {
+	dir := t.TempDir()
+	for _, name := range []string{"en_US-lessac-medium.onnx", "en_US-lessac-medium.onnx.json", "en_US-amy-medium.onnx", "notes.txt"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := installedVoices(dir); strings.Join(got, ",") != "en_US-amy-medium,en_US-lessac-medium" {
+		t.Errorf("installedVoices = %q", got)
+	}
+	if got := installedVoices(filepath.Join(dir, "missing")); len(got) != 0 {
+		t.Errorf("a missing folder has voices %q", got)
+	}
+}
