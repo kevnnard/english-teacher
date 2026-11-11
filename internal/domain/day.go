@@ -68,6 +68,7 @@ type Day struct {
 	Reviews    int      // cards graded
 	Correct    int      // graded cards recalled (grade 3 or more)
 	Failed     int      // graded cards forgotten
+	WordsRead  int      // words of the story chapters finished, for "Words read this week"
 	Activities []string // finished activities, like "Lesson 2" or "Reading"
 }
 

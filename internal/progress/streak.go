@@ -92,6 +92,7 @@ func Add(days []domain.Day, delta domain.Day) []domain.Day {
 	d.Reviews = max(0, d.Reviews+delta.Reviews)
 	d.Correct = max(0, d.Correct+delta.Correct)
 	d.Failed = max(0, d.Failed+delta.Failed)
+	d.WordsRead = max(0, d.WordsRead+delta.WordsRead)
 	d.Activities = slices.Clone(d.Activities)
 	for _, a := range delta.Activities {
 		if !slices.Contains(d.Activities, a) {
