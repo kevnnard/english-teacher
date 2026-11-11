@@ -30,6 +30,11 @@ TEMPLATE = '''class EnglishTeacher < Formula
       Review, Fluency and the vocabulary quiz work offline.
       Learn, Write, Talk and the grammar quiz use the `pi` CLI (Gentle Shell);
       see `teacher models`.
+
+      Audio is optional and runs locally: Listen, Pairs, Speak and Talk by
+      voice need Piper (`uv tool install piper-tts`, then `teacher setup voice`);
+      Speak and Talk by voice also need whisper.cpp (`brew install whisper-cpp`,
+      then `teacher setup whisper`). `teacher doctor` shows what is found.
     EOS
   end
 

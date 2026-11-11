@@ -56,7 +56,7 @@ const usage = `usage:
 // version is the released version of teacher, printed by --version.
 // Release builds set it with -ldflags "-X main.version=X.Y.Z"; the default
 // is the current release, so `go install` builds print it too.
-var version = "0.1.0"
+var version = "0.2.0"
 
 func main() {
 	if err := run(os.Args[1:], os.Stdout); err != nil {

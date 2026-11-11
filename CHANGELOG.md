@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.2.0 — 2026-11-10
+
+Voice. Everything runs on your machine and is optional: without Piper or
+whisper the app works as in 0.1.0 and tells you how to set audio up.
+
+### Listening
+- `p` reads aloud in Review (the word, then the example), Learn (the
+  selected word; `P` the whole text), Write feedback and Quiz answers.
+  Pressing it twice quickly repeats it slower. Speech uses Piper.
+- Listen: dictation of up to 10 sentences from your own cards' examples,
+  checked like a typed answer; recorded as "Listen: N/10".
+- Pairs: minimal pairs for Spanish speakers (ship/sheep, full/fool,
+  cat/cut, b/v, think/sink, they/day, work/worked, state/estate). Per-contrast
+  accuracy is stored and the weakest contrasts come first; "Pairs: N/20".
+
+### Speaking
+- Speak: hear a sentence, record yourself, and whisper.cpp marks which words
+  it understood. A changed vowel or a dropped ending is never forgiven;
+  sentences with missed words come back once at the end of the round.
+- Talk by voice: `ctrl+r` records your line into the input (you check it,
+  then send it), the tutor's replies are read aloud (`ctrl+t` voice mode,
+  `ctrl+p` replay).
+
+### Setup
+- `teacher setup voice` and `teacher setup whisper` download the models;
+  `teacher doctor` shows pi, piper, the voice, a player, whisper, its model
+  and a recorder.
+- Database migration 5 adds the `pair_stats` table; existing data is kept.
+
 ## 0.1.0 — 2026-11-10
 
 The first release: every text feature of the English teacher, covering

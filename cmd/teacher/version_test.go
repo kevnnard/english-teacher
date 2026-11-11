@@ -10,7 +10,7 @@ func TestVersionFlagPrintsTheVersion(t *testing.T) {
 	if err := run([]string{"--version"}, &out); err != nil {
 		t.Fatal(err)
 	}
-	if got := out.String(); got != "teacher 0.1.0\n" {
-		t.Errorf("--version printed %q, want %q", got, "teacher 0.1.0\n")
+	if got := out.String(); got != "teacher 0.2.0\n" {
+		t.Errorf("--version printed %q, want %q", got, "teacher 0.2.0\n")
 	}
 }

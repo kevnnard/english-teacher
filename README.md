@@ -11,7 +11,7 @@
   <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-PolyForm%20Strict%201.0.0-e6b450?style=flat-square" alt="License: PolyForm Strict 1.0.0"></a>
   <img src="https://img.shields.io/badge/macOS%20%7C%20Linux-terminal-a6cc70?style=flat-square" alt="macOS and Linux">
   <img src="https://img.shields.io/badge/Go-1.27-73b8ff?style=flat-square" alt="Go 1.27">
-  <img src="https://img.shields.io/badge/version-0.1.0-f07178?style=flat-square" alt="Version 0.1.0">
+  <img src="https://img.shields.io/badge/version-0.2.0-f07178?style=flat-square" alt="Version 0.2.0">
 </p>
 
 <p align="center">
@@ -533,7 +533,8 @@ internal/tui/       Bubbletea screens
 ## Roadmap
 
 - **0.1.0** — every text feature: Review, Learn, Write, Talk, Fluency, Quiz, streak and daily log. See [CHANGELOG.md](CHANGELOG.md).
-- **0.2.0** — voice: shadowing, pronunciation and minimal pairs.
+- **0.2.0** — voice, all local and optional: `p` to listen everywhere, Listen (dictation), Pairs (minimal pairs), Speak (shadowing with per-word feedback) and Talk by voice.
+- **Next** — audio cache for instant replays, a microphone check in `teacher doctor`, retention chart on Home.
 
 ## Releasing
 
