@@ -53,6 +53,10 @@ func (a App) listenTexts() []string {
 		if q := a.quiz; q.phase == quizAnswered {
 			return []string{q.questions[q.pos].word}
 		}
+	case Listen:
+		if d := a.dictation; d.phase == dictationAnswered {
+			return []string{d.items[d.pos]}
+		}
 	}
 	return nil
 }
@@ -131,8 +135,17 @@ func (a App) speak(texts []string) (App, tea.Cmd) {
 	if opts.Slow {
 		a.listen.at = time.Time{} // a third press is normal speed again
 	}
+	return a, a.say(texts, opts)
+}
+
+// say returns a command that says texts one after the other with opts,
+// without blocking the UI; nil without a speaker.
+func (a App) say(texts []string, opts speech.Options) tea.Cmd {
 	sp := a.speaker
-	return a, func() tea.Msg {
+	if sp == nil {
+		return nil
+	}
+	return func() tea.Msg {
 		for _, t := range texts {
 			if err := sp.Say(context.Background(), t, opts); err != nil {
 				return spokenMsg{err: err}

@@ -84,6 +84,14 @@ var helpSections = []helpSection{
 		{"p", "after an answer: hear the right one; p p slower"},
 		{"esc", "back to Home; the quiz stays"},
 	}},
+	{"Listen", [][2]string{
+		{"enter", "start a dictation; after the feedback, the next one"},
+		{"ctrl+p", "hear the sentence again (p is a letter here)"},
+		{"ctrl+s", "hear it slower"},
+		{"enter", "check what you typed (empty: I don't know)"},
+		{"n", "a new dictation from the result"},
+		{"esc", "back to Home; the dictation stays"},
+	}},
 	{"Words", [][2]string{
 		{"/", "filter by word or meaning (enter keep · esc clear)"},
 		{"↑ ↓ / j k", "scroll"},

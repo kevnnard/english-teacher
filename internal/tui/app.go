@@ -34,15 +34,16 @@ const (
 	Talk
 	Fluency
 	Quiz
+	Listen
 	Words
 	Stats
 )
 
 // screens is the order of the tabs and of tab / shift+tab.
-var screens = []Screen{Home, Review, Learn, Write, Talk, Fluency, Quiz, Words, Stats}
+var screens = []Screen{Home, Review, Learn, Write, Talk, Fluency, Quiz, Listen, Words, Stats}
 
 func (s Screen) String() string {
-	return [...]string{"Home", "Review", "Learn", "Write", "Talk", "Fluency", "Quiz", "Words", "Stats"}[s]
+	return [...]string{"Home", "Review", "Learn", "Write", "Talk", "Fluency", "Quiz", "Listen", "Words", "Stats"}[s]
 }
 
 // Config is what the app needs from the outside world.
@@ -95,8 +96,9 @@ type App struct {
 	mistakeCounts  map[string]int // major writing errors per kind, as stored
 	recordMistakes RecordMistakesFunc
 
-	speaker speech.Speaker // nil when audio is not set up
-	listen  listenState
+	speaker   speech.Speaker // nil when audio is not set up
+	listen    listenState
+	dictation dictationState
 
 	screen        Screen
 	width, height int // terminal size; zero until the first WindowSizeMsg
@@ -249,6 +251,8 @@ func (a App) typing() bool {
 		return a.fluency.typing()
 	case Quiz:
 		return a.quiz.typing()
+	case Listen:
+		return a.dictation.typing()
 	}
 	return false
 }
@@ -273,6 +277,8 @@ func (a App) updateScreen(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return a.updateFluency(msg)
 	case Quiz:
 		return a.updateQuiz(msg)
+	case Listen:
+		return a.updateDictation(msg)
 	}
 	return a, nil
 }

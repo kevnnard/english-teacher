@@ -29,6 +29,7 @@ func TestGolden(t *testing.T) {
 			keys: strings.Split("n i c e space t o space m e a t space y o u enter", " ")},
 		{name: "review-done", cards: deck(), start: Review,
 			keys: []string{"space", "1", "space", "1", "space", "3", "space", "3", "space", "4"}},
+		{name: "listen-no-audio", cards: deck(), start: Listen},
 	}
 	for _, c := range cases {
 		for _, width := range []int{80, 120, 160} {

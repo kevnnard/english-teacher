@@ -121,6 +121,8 @@ func (a App) screenView(w, h int) string {
 		return a.fluencyView(w, h)
 	case Quiz:
 		return a.quizView(w)
+	case Listen:
+		return a.dictationView(w)
 	default:
 		return a.st.main.title.Render(a.screen.String())
 	}
@@ -133,12 +135,15 @@ func (a App) errorView() string {
 }
 
 // header is the top bar: the date and what this page is on the left, the
-// tabs on the right. When the tabs do not fit, they move closer together
-// and, if they still do not fit, only the active one stays.
+// tabs on the right. When the tabs do not fit, they move closer together.
+// If they still do not fit and the page context only repeats the active
+// tab's name, the context goes and then the date gets shorter: on 80
+// columns every tab stays. Otherwise only the active tab stays.
 func (a App) header(w int) string {
 	r := a.st.chrome
-	left := r.base.Render(" ") + r.title.Render(a.now().Format("Monday 2 Jan")) +
-		r.label.Render("  ·  ") + r.secondary.Render(a.pageContext())
+	date := func(layout string) string { return r.base.Render(" ") + r.title.Render(a.now().Format(layout)) }
+	pageName := a.pageContext()
+	left := date("Monday 2 Jan") + r.label.Render("  ·  ") + r.secondary.Render(pageName)
 
 	tab := func(s Screen) string {
 		if s == a.screen {
@@ -155,7 +160,13 @@ func (a App) header(w int) string {
 	if !fits(right) {
 		right = strings.Join(tabs, r.base.Render(" ")) + r.base.Render(" ")
 	}
+	for _, layout := range []string{"Monday 2 Jan", "Mon 2 Jan"} {
+		if !fits(right) && pageName == a.screen.String() {
+			left = date(layout) // the active tab already names the page
+		}
+	}
 	if !fits(right) {
+		left = date("Monday 2 Jan") + r.label.Render("  ·  ") + r.secondary.Render(pageName)
 		right = tab(a.screen) + r.base.Render(" ")
 	}
 
@@ -232,6 +243,8 @@ func (a App) hints() []string {
 		return a.fluencyHints()
 	case Quiz:
 		return withListen(a.quizHints(), a.listenHints())
+	case Listen:
+		return a.dictationHints() // its own ctrl+p and ctrl+s say the sentence
 	case Words:
 		if a.words.filtering {
 			return []string{"type to filter", "enter keep", "esc clear"}

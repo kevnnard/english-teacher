@@ -262,7 +262,7 @@ func TestQuizEarlyQuitRecordsNothingAndEscKeepsTheQuiz(t *testing.T) {
 	if a.Screen() != Home {
 		t.Fatalf("esc went to %v", a.Screen())
 	}
-	a, _ = press(t, a, "shift+tab", "shift+tab", "shift+tab")
+	a, _ = press(t, a, "shift+tab", "shift+tab", "shift+tab", "shift+tab") // Stats, Words, Listen, Quiz
 	if a.Screen() != Quiz {
 		t.Fatalf("screen %v", a.Screen())
 	}

@@ -19,7 +19,7 @@
 </p>
 
 ```text
- Monday 9 Nov  ·  Home                    Home  Review  Learn  Write  Talk  Fluency  Quiz  Words  Stats
+ Monday 9 Nov  ·  Home            Home  Review  Learn  Write  Talk  Fluency  Quiz  Listen  Words  Stats
       │
       │   Good evening.
       │
@@ -46,6 +46,7 @@
 | 💬 | **Can I hold a simple conversation?** | **Talk**: guided role-plays with gentle recasts |
 | ⏱️ | **Can I say it faster?** | **Fluency**: the same story in 4, 3 and 2 minutes |
 | ✅ | **What do I really remember?** | **Quiz**: vocabulary from your cards, grammar on your errors |
+| 🎧 | **Do I understand it when I hear it?** | **Listen**: dictation of your own example sentences (needs audio) |
 | 🔥 | **Am I keeping it up?** | **Home** and **Stats**: streak, daily goal and study log |
 
 ## Install
@@ -108,8 +109,10 @@ never resets a review schedule, and keeps the name and goal you set.
 **Learn** (a short reading written for you), **Write** (a writing task you
 correct with the AI), **Talk** (a guided role-play with the AI), **Fluency** (the same story
 three times, faster each time), **Quiz** (vocabulary from your cards or
-grammar from the AI), **Words** (every word with its status) and **Stats**. Every screen is a notebook page: the top bar shows the date,
-the page ("Page 3 of 26" during a review) and the screen tabs; a margin line
+grammar from the AI), **Listen** (dictation of your own sentences, with
+audio), **Words** (every word with its status) and **Stats**. Every screen is a notebook page: the top bar shows the date,
+the page ("Page 3 of 26" during a review) and the screen tabs (on 80
+columns the page name, which the active tab already shows, makes room for them); a margin line
 runs down the left (6 columns in from the edge on terminals 100+ columns
 wide, 2 on narrower ones) and the text never gets wider than 76 columns.
 
@@ -267,6 +270,22 @@ again (a grammar item with its why). The quiz counts as study
 you answer the last question; leaving earlier records nothing. `n` starts a
 new quiz; `esc` goes Home and keeps the quiz.
 
+### Listen
+
+Listen is dictation, and needs [audio](#audio-optional). It plays up to 10
+example sentences of your own cards (each once, at most 12 words long; words
+you have studied in Review first), one by one; you type what you hear.
+Each sentence plays when it appears; `ctrl+p` plays it again and `ctrl+s`
+slower (`p` and `s` are letters while you type). `enter` checks it like a
+typed review answer: case and punctuation never count, so ✓ correct; a
+typo of 1 or 2 letters is ✓ almost with the letter diff and still counts;
+anything else is ✗ with the sentence and the words you missed. An empty
+`enter` means "I don't know" and shows the sentence. The result shows your
+score (`7/10`) and the sentences to practice. It counts as study
+(`Listen: 7/10`, at most 10 minutes) when you answer the last sentence;
+it never changes your review dates. With fewer than 3 sentences, or
+without audio, the page says how to get them.
+
 ## Configuration and data
 
 Models live in `$XDG_CONFIG_HOME/english-teacher/config.json`
@@ -300,6 +319,7 @@ Press `p` to listen; `p` twice within 2 seconds plays the same text slower.
 | Learn | the selected glossary word; `P` reads the whole text |
 | Write | the right version of the first error you did not fix (feedback), or of the one you just rewrote |
 | Quiz | the right answer, once you have answered |
+| Listen | the sentence, once checked (while typing: `ctrl+p`, `ctrl+s` slower) |
 
 While you type, `p` is a letter. Without audio, `p` shows
 "Audio is off: run `teacher doctor`" and nothing else changes.
@@ -378,6 +398,11 @@ current screen.
 | | `n` | a new quiz from the result |
 | | `p` | after an answer: listen to the right answer |
 | | `esc` | back to Home; the quiz stays |
+| Listen | `enter` | start a dictation; after the feedback, the next sentence |
+| | `ctrl+p` / `ctrl+s` | hear the sentence again / slower (`p` and `s` are letters here) |
+| | `enter` | check what you typed (empty: I don't know) |
+| | `n` | a new dictation from the result |
+| | `esc` | back to Home; the dictation stays |
 | Words | `/` | filter by word or meaning (`enter` keep · `esc` clear) |
 | | `↑` `↓` / `j` `k` | scroll |
 
