@@ -164,11 +164,15 @@ func (s *Store) Close() error {
 }
 
 func (s *Store) migrate() error {
+	return s.migrateTo(len(migrations))
+}
+
+func (s *Store) migrateTo(target int) error {
 	var version int
 	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil {
 		return err
 	}
-	for i := version; i < len(migrations); i++ {
+	for i := version; i < target; i++ {
 		tx, err := s.db.Begin()
 		if err != nil {
 			return err

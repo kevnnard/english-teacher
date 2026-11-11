@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/kevnnard/english-teacher/internal/domain"
@@ -14,6 +16,7 @@ import (
 var (
 	ErrNotTeacherDB = errors.New("not a teacher database")
 	ErrIntegrity    = errors.New("integrity check failed")
+	ErrNewerSchema  = errors.New("newer schema than this teacher reads")
 )
 
 func SchemaVersion() int {
@@ -84,7 +87,10 @@ func Inspect(ctx context.Context, path string) (Info, error) {
 		return Info{}, ErrNotTeacherDB
 	}
 	if info.Version > SchemaVersion() {
-		return info, nil
+		return info, ErrNewerSchema
+	}
+	if err := validate(ctx, path, info.Version); err != nil {
+		return Info{Version: info.Version}, err
 	}
 	info.Latest, err = latestActivity(ctx, conn, tables)
 	return info, err
@@ -163,4 +169,102 @@ func latestActivity(ctx context.Context, conn *sql.Conn, tables map[string]bool)
 		a.Day = domain.DateOf(a.At)
 	}
 	return a, nil
+}
+
+func validate(ctx context.Context, path string, version int) error {
+	dir, err := os.MkdirTemp("", "teacher-inspect-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(dir)
+	check := filepath.Join(dir, "check.db")
+	if err := copyExclusive(path, check); err != nil {
+		return err
+	}
+	if err := sameColumns(ctx, check, filepath.Join(dir, "then.db"), version); err != nil {
+		return err
+	}
+	got, err := Open(check)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrNotTeacherDB, err)
+	}
+	defer got.Close()
+	if err := sameColumns(ctx, check, filepath.Join(dir, "now.db"), len(migrations)); err != nil {
+		return err
+	}
+	for _, dir := range []domain.Direction{domain.Recognition, domain.Production} {
+		if _, err := got.ListCards(ctx, dir); err != nil {
+			return fmt.Errorf("%w: %v", ErrNotTeacherDB, err)
+		}
+	}
+	if _, err := got.Days(ctx); err != nil {
+		return fmt.Errorf("%w: %v", ErrNotTeacherDB, err)
+	}
+	return nil
+}
+
+func sameColumns(ctx context.Context, path, refPath string, version int) error {
+	ref, err := sql.Open("sqlite", refPath)
+	if err != nil {
+		return err
+	}
+	defer ref.Close()
+	ref.SetMaxOpenConns(1)
+	if err := (&Store{db: ref}).migrateTo(version); err != nil {
+		return err
+	}
+	want, err := columns(ctx, ref)
+	if err != nil {
+		return err
+	}
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	got, err := columns(ctx, db)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrNotTeacherDB, err)
+	}
+	for col := range want {
+		if !got[col] {
+			return fmt.Errorf("%w: missing %s", ErrNotTeacherDB, col)
+		}
+	}
+	return nil
+}
+
+func columns(ctx context.Context, db *sql.DB) (map[string]bool, error) {
+	rows, err := db.QueryContext(ctx,
+		`SELECT m.name, c.name FROM sqlite_master m, pragma_table_info(m.name) c WHERE m.type = 'table'`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	cols := map[string]bool{}
+	for rows.Next() {
+		var table, col string
+		if err := rows.Scan(&table, &col); err != nil {
+			return nil, err
+		}
+		cols[table+"."+col] = true
+	}
+	return cols, rows.Err()
+}
+
+func copyExclusive(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		out.Close()
+		return err
+	}
+	return out.Close()
 }

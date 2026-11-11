@@ -25,6 +25,7 @@ type fakeRemote struct {
 	home    string
 	calls   [][]string
 	fail    func(script string) bool
+	lost    func(script string) bool
 	corrupt bool
 }
 
@@ -47,7 +48,11 @@ func useFakeRemote(t *testing.T) *fakeRemote {
 		cmd := exec.Command("sh", "-c", script)
 		cmd.Dir = f.home
 		cmd.Stdin, cmd.Stdout = stdin, stdout
-		return cmd.Run()
+		err := cmd.Run()
+		if err == nil && f.lost != nil && f.lost(script) {
+			return errors.New("connection lost")
+		}
+		return err
 	}
 	t.Cleanup(func() { runCommand = orig })
 	return f
@@ -607,4 +612,239 @@ func TestCLIExistingCommandsBehaveAsBefore(t *testing.T) {
 
 	code, out, errOut = runCLI("--version")
 	assertCLI(t, code, out, errOut, 0, "teacher "+version+"\n", "")
+}
+
+func newerSchemaErr(shown string) string {
+	return fmt.Sprintf("teacher: %s has schema version 99; this teacher reads up to %d (upgrade teacher here first); nothing changed\n", shown, store.SchemaVersion())
+}
+
+func TestSyncRefusesDestinationWithNewerSchemaEvenWithNewerActivity(t *testing.T) {
+	for _, force := range []bool{false, true} {
+		t.Run(fmt.Sprintf("push force=%v", force), func(t *testing.T) {
+			fixSyncClock(t)
+			f := useFakeRemote(t)
+			makeStudyDB(t, f.db(), "2026-11-11")
+			execSQL(t, f.db(), `PRAGMA user_version = 99`)
+			local := filepath.Join(t.TempDir(), "teacher.db")
+			makeStudyDB(t, local, "2026-11-10")
+			beforeLocal, beforeRemote := dirState(t, filepath.Dir(local)), dirState(t, f.home)
+			args := []string{"--db", local, "sync", "push", "mac"}
+			if force {
+				args = append(args, "--force")
+			}
+
+			code, out, errOut := runCLI(args...)
+
+			assertCLI(t, code, out, errOut, 1, "Checking "+shownRemote+"\n", newerSchemaErr(shownRemote))
+			assertSame(t, "local", beforeLocal, dirState(t, filepath.Dir(local)))
+			assertSame(t, "remote", beforeRemote, dirState(t, f.home))
+		})
+		t.Run(fmt.Sprintf("pull force=%v", force), func(t *testing.T) {
+			fixSyncClock(t)
+			f := useFakeRemote(t)
+			makeStudyDB(t, f.db(), "2026-11-10")
+			local := filepath.Join(t.TempDir(), "teacher.db")
+			makeStudyDB(t, local, "2026-11-11")
+			execSQL(t, local, `PRAGMA user_version = 99`)
+			beforeLocal, beforeRemote := dirState(t, filepath.Dir(local)), dirState(t, f.home)
+			args := []string{"--db", local, "sync", "pull", "mac"}
+			if force {
+				args = append(args, "--force")
+			}
+
+			code, out, errOut := runCLI(args...)
+
+			assertCLI(t, code, out, errOut, 1, "Fetching "+shownRemote+"\n", newerSchemaErr(local))
+			assertSame(t, "local", beforeLocal, dirState(t, filepath.Dir(local)))
+			assertSame(t, "remote", beforeRemote, dirState(t, f.home))
+		})
+	}
+}
+
+func TestSyncTwiceInTheSameSecondKeepsBothBackups(t *testing.T) {
+	t.Run("push", func(t *testing.T) {
+		stamp := fixSyncClock(t)
+		f := useFakeRemote(t)
+		makeStudyDB(t, f.db(), "2026-11-10")
+		original, _ := os.ReadFile(f.db())
+		local := filepath.Join(t.TempDir(), "teacher.db")
+		makeStudyDB(t, local, "2026-11-10", "2026-11-11")
+
+		code, _, errOut := runCLI("--db", local, "sync", "push", "mac")
+		if code != 0 {
+			t.Fatalf("first push: exit %d: %s", code, errOut)
+		}
+		first, _ := os.ReadFile(f.db())
+		code, out, errOut := runCLI("--db", local, "sync", "push", "mac")
+
+		assertCLI(t, code, out, errOut, 0,
+			"Checking "+shownRemote+"\n"+
+				"Sending "+local+" (last study 2026-11-11)\n"+
+				"Backup: "+shownRemote+".bak-"+stamp+"-1\n"+
+				"Pushed "+local+" to "+shownRemote+"\n", "")
+		if b, _ := os.ReadFile(f.db() + ".bak-" + stamp); !bytes.Equal(b, original) {
+			t.Error("first backup is not the original remote database")
+		}
+		if b, _ := os.ReadFile(f.db() + ".bak-" + stamp + "-1"); !bytes.Equal(b, first) {
+			t.Error("second backup is not the database left by the first push")
+		}
+		if n := len(dirState(t, f.home)); n != 3 {
+			t.Errorf("remote has %d files, want the database and two backups", n)
+		}
+	})
+	t.Run("pull", func(t *testing.T) {
+		stamp := fixSyncClock(t)
+		f := useFakeRemote(t)
+		makeStudyDB(t, f.db(), "2026-11-10", "2026-11-11")
+		local := filepath.Join(t.TempDir(), "teacher.db")
+		makeStudyDB(t, local, "2026-11-10")
+		original, _ := os.ReadFile(local)
+
+		code, _, errOut := runCLI("--db", local, "sync", "pull", "mac")
+		if code != 0 {
+			t.Fatalf("first pull: exit %d: %s", code, errOut)
+		}
+		first, _ := os.ReadFile(local)
+		code, out, errOut := runCLI("--db", local, "sync", "pull", "mac")
+
+		assertCLI(t, code, out, errOut, 0,
+			"Fetching "+shownRemote+"\n"+
+				"Backup: "+local+".bak-"+stamp+"-1\n"+
+				"Pulled "+shownRemote+" (last study 2026-11-11) into "+local+"\n", "")
+		if b, _ := os.ReadFile(local + ".bak-" + stamp); !bytes.Equal(b, original) {
+			t.Error("first backup is not the original local database")
+		}
+		if b, _ := os.ReadFile(local + ".bak-" + stamp + "-1"); !bytes.Equal(b, first) {
+			t.Error("second backup is not the database left by the first pull")
+		}
+		if n := len(dirState(t, filepath.Dir(local))); n != 3 {
+			t.Errorf("local dir has %d files, want the database and two backups", n)
+		}
+	})
+}
+
+func TestSyncRefusesMalformedTeacherSchemaEvenWithForce(t *testing.T) {
+	malformed := []struct {
+		name  string
+		write func(t *testing.T, path string)
+	}{
+		{"cards without id", func(t *testing.T, path string) {
+			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			execSQL(t, path, `CREATE TABLE cards (wrong TEXT)`, `PRAGMA user_version = 1`)
+		}},
+		{"current version without reviews", func(t *testing.T, path string) {
+			makeStudyDB(t, path, "2026-11-12")
+			execSQL(t, path, `DROP TABLE reviews`)
+		}},
+	}
+	for _, m := range malformed {
+		t.Run("pull "+m.name, func(t *testing.T) {
+			fixSyncClock(t)
+			f := useFakeRemote(t)
+			m.write(t, f.db())
+			local := filepath.Join(t.TempDir(), "teacher.db")
+			makeStudyDB(t, local, "2026-11-10")
+			beforeLocal, beforeRemote := dirState(t, filepath.Dir(local)), dirState(t, f.home)
+
+			code, out, errOut := runCLI("--db", local, "sync", "pull", "mac", "--force")
+
+			assertCLI(t, code, out, errOut, 1, "Fetching "+shownRemote+"\n",
+				"teacher: "+shownRemote+" is not a teacher database; nothing changed\n")
+			assertSame(t, "local", beforeLocal, dirState(t, filepath.Dir(local)))
+			assertSame(t, "remote", beforeRemote, dirState(t, f.home))
+		})
+		t.Run("push "+m.name, func(t *testing.T) {
+			fixSyncClock(t)
+			f := useFakeRemote(t)
+			makeStudyDB(t, f.db(), "2026-11-10")
+			local := filepath.Join(t.TempDir(), "teacher.db")
+			m.write(t, local)
+			beforeLocal, beforeRemote := dirState(t, filepath.Dir(local)), dirState(t, f.home)
+
+			code, out, errOut := runCLI("--db", local, "sync", "push", "mac", "--force")
+
+			assertCLI(t, code, out, errOut, 1, "",
+				"teacher: "+local+" is not a teacher database; nothing changed\n")
+			assertSame(t, "local", beforeLocal, dirState(t, filepath.Dir(local)))
+			assertSame(t, "remote", beforeRemote, dirState(t, f.home))
+		})
+	}
+}
+
+func TestSyncPushRefusesSourceWithUnsupportedSchemaToMissingRemote(t *testing.T) {
+	fixSyncClock(t)
+	f := useFakeRemote(t)
+	local := filepath.Join(t.TempDir(), "teacher.db")
+	makeStudyDB(t, local, "2026-11-11")
+	execSQL(t, local, `PRAGMA user_version = 99`)
+	before := dirState(t, filepath.Dir(local))
+
+	code, out, errOut := runCLI("--db", local, "sync", "push", "mac", "--force")
+
+	assertCLI(t, code, out, errOut, 1, "", newerSchemaErr(local))
+	if len(f.calls) != 0 {
+		t.Errorf("ran %v, want nothing", f.calls)
+	}
+	if n := len(dirState(t, f.home)); n != 0 {
+		t.Errorf("remote has %d files, want none", n)
+	}
+	assertSame(t, "local", before, dirState(t, filepath.Dir(local)))
+}
+
+func TestSyncPushReportsATempFileItCouldNotRemove(t *testing.T) {
+	stamp := fixSyncClock(t)
+	f := useFakeRemote(t)
+	f.lost = func(script string) bool { return strings.Contains(script, "cat >") }
+	f.fail = func(script string) bool { return strings.Contains(script, "rm -f") }
+	makeStudyDB(t, f.db(), "2026-11-10")
+	old, _ := os.ReadFile(f.db())
+	local := filepath.Join(t.TempDir(), "teacher.db")
+	makeStudyDB(t, local, "2026-11-11")
+
+	code, out, errOut := runCLI("--db", local, "sync", "push", "mac")
+
+	assertCLI(t, code, out, errOut, 1,
+		"Checking "+shownRemote+"\n"+
+			"Sending "+local+" (last study 2026-11-11)\n",
+		"teacher: ssh mac: connection lost; "+shownRemote+" was not replaced, but the temporary file "+
+			shownRemote+".sync-"+stamp+" is left there and could not be removed (ssh mac: connection lost)\n")
+	if got, _ := os.ReadFile(f.db()); !bytes.Equal(got, old) {
+		t.Error("remote database changed")
+	}
+	if _, err := os.Stat(f.db() + ".sync-" + stamp); err != nil {
+		t.Errorf("the reported temp file: %v", err)
+	}
+}
+
+func TestSyncPushReportsAPossibleReplaceWhenTheConnectionDropsAtTheEnd(t *testing.T) {
+	stamp := fixSyncClock(t)
+	f := useFakeRemote(t)
+	gone := false
+	f.lost = func(script string) bool {
+		if strings.Contains(script, "mv -f") {
+			gone = true
+		}
+		return gone
+	}
+	f.fail = func(string) bool { return gone }
+	makeStudyDB(t, f.db(), "2026-11-10")
+	old, _ := os.ReadFile(f.db())
+	local := filepath.Join(t.TempDir(), "teacher.db")
+	makeStudyDB(t, local, "2026-11-11")
+
+	code, out, errOut := runCLI("--db", local, "sync", "push", "mac")
+
+	assertCLI(t, code, out, errOut, 1,
+		"Checking "+shownRemote+"\n"+
+			"Sending "+local+" (last study 2026-11-11)\n",
+		"teacher: ssh mac: connection lost; the connection dropped at the final step, so "+shownRemote+
+			" may already be replaced by "+local+"; its previous database is kept as "+shownRemote+".bak-"+stamp+"\n")
+	if b, _ := os.ReadFile(f.db() + ".bak-" + stamp); !bytes.Equal(b, old) {
+		t.Error("backup is not the old remote database")
+	}
+	if got := studyDays(t, f.db()); strings.Join(got, ",") != "2026-11-11" {
+		t.Errorf("remote days = %v", got)
+	}
 }

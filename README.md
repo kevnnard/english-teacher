@@ -131,17 +131,25 @@ teacher sync pull kev@mac    # bring the database of mac here
 - The database on the other machine is
   `~/.local/share/english-teacher/teacher.db`; `--remote-db path` picks
   another. This machine uses the usual `--db` path.
-- What is sent is a consistent snapshot, checked (integrity check, a teacher
-  database, a schema this teacher can read) before it replaces anything. The
-  replace writes a temp file next to the database and renames it, so a failure
-  at any step leaves the database as it was.
+- What is sent is a consistent snapshot. Before it replaces anything, both
+  databases are checked on a temporary copy: the integrity check, the tables
+  and columns teacher expects for that schema version, an upgrade to the
+  current schema and a read of the cards. A file that fails is refused, even
+  with `--force`.
+- The replace writes a temp file next to the database and renames it. Before
+  that final rename, a failure leaves the database as it was; if the temp file
+  cannot be removed, the error names it. If the connection drops during the
+  final rename, the new database may already be in place on the other machine;
+  the error says so and names the backup, which is always kept.
 - The database being replaced is kept next to it as
-  `teacher.db.bak-<timestamp>`. A missing database is created.
+  `teacher.db.bak-<timestamp>`. A backup is never overwritten: a second sync
+  in the same second adds `-1`, `-2` and so on. A missing database is created.
 - It refuses when the database being replaced has newer study activity than
   the one being copied, and shows both dates. `--force` replaces it anyway.
-- It refuses an incoming database with a newer schema than the app on the
-  receiving side can read. When pushing, that is the schema of the database
-  already there: upgrade teacher on that machine and open it once first.
+- It refuses, even with `--force`, when either database has a schema newer
+  than this teacher reads: upgrade teacher here first. When pushing, it also
+  refuses a database there with an older schema than the one sent: upgrade
+  teacher on that machine and open it once first.
 
 ## The screens
 

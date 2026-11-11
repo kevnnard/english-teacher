@@ -8,10 +8,16 @@
   `--remote-db path` sets the database there (default
   `~/.local/share/english-teacher/teacher.db`). Close teacher on both
   machines before syncing.
-- It sends a consistent snapshot, checks it before replacing anything, and
-  replaces atomically; the old database is kept as `teacher.db.bak-<timestamp>`.
+- It sends a consistent snapshot, checks both databases on a temporary copy
+  (integrity, the expected tables and columns, an upgrade and a read) before
+  replacing anything, and replaces with a final atomic rename. Before that
+  rename a failure changes nothing; a connection lost during it can leave the
+  new database in place, and the error says so and names the backup.
+- The old database is kept as `teacher.db.bak-<timestamp>`; a backup is never
+  overwritten (a second sync in the same second adds `-1`, `-2`, ...).
 - It refuses to replace a database with newer study activity (showing both
-  dates) unless `--force`, and refuses a database with a newer schema.
+  dates) unless `--force`. It always refuses a malformed database and a
+  database, on either side, with a schema newer than this teacher reads.
 
 ## 0.3.0 — 2026-11-11
 

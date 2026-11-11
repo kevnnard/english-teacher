@@ -99,30 +99,54 @@ func (r remote) fetch(dst string) (bool, error) {
 	return true, f.Close()
 }
 
-func (r remote) replace(snapshot []byte, stamp string) error {
+type replaceUnknown struct {
+	err    error
+	backup string
+}
+
+func (e *replaceUnknown) Error() string { return e.err.Error() }
+
+func (e *replaceUnknown) Unwrap() error { return e.err }
+
+func (r remote) replace(snapshot []byte, stamp string) (string, error) {
 	p := shellQuote(r.path)
 	next := shellQuote(r.path + ".sync-" + stamp)
 	backup := shellQuote(r.path + ".bak-" + stamp)
-	discard := func() { r.ssh(nil, nil, "rm -f -- "+next) }
+	discard := func(err error) error {
+		if rmErr := r.ssh(nil, nil, "rm -f -- "+next); rmErr != nil {
+			return fmt.Errorf("%w; %s was not replaced, but the temporary file %s.sync-%s is left there and could not be removed (%v)",
+				err, r, r, stamp, rmErr)
+		}
+		return err
+	}
 
 	if err := r.ssh(bytes.NewReader(snapshot), nil, "mkdir -p -- "+shellQuote(path.Dir(r.path))+" && cat > "+next); err != nil {
-		discard()
-		return err
+		return "", discard(err)
 	}
 	var got bytes.Buffer
 	if err := r.ssh(nil, &got, "cat -- "+next); err != nil {
-		discard()
-		return err
+		return "", discard(err)
 	}
 	if !bytes.Equal(got.Bytes(), snapshot) {
-		discard()
-		return fmt.Errorf("the copy received by %s does not match the one sent; nothing changed", r.host)
+		return "", discard(fmt.Errorf("the copy received by %s does not match the one sent; nothing changed", r.host))
 	}
-	if err := r.ssh(nil, nil, "test ! -e "+p+" || cp -p -- "+p+" "+backup+" && mv -f -- "+next+" "+p); err != nil {
-		discard()
-		return err
+	script := "if test -e " + p + "; then s=; i=0; while test -e " + backup + `"$s"; do i=$((i+1)); s=-$i; done; ` +
+		"(set -C; : > " + backup + `"$s") && cp -p -- ` + p + " " + backup + `"$s" && printf 'backup%s
+' "$s" || exit 1; fi; ` +
+		"mv -f -- " + next + " " + p
+	var out bytes.Buffer
+	err := r.ssh(nil, &out, script)
+	saved := ""
+	if line, ok := strings.CutPrefix(strings.TrimSpace(out.String()), "backup"); ok {
+		saved = r.String() + ".bak-" + stamp + line
 	}
-	return nil
+	if err == nil {
+		return saved, nil
+	}
+	if r.ssh(nil, nil, "test -e "+next) == nil {
+		return "", discard(err)
+	}
+	return saved, &replaceUnknown{err: err, backup: saved}
 }
 
 func parseSync(args []string) (string, remote, bool, error) {
@@ -189,10 +213,6 @@ func syncPull(ctx context.Context, dbPath string, r remote, force bool, tmp stri
 	if err != nil {
 		return err
 	}
-	if in.Version > store.SchemaVersion() {
-		return fmt.Errorf("%s has schema version %d; this teacher reads up to %d (upgrade teacher here first); nothing changed",
-			r, in.Version, store.SchemaVersion())
-	}
 	busy, err := inUse(dbPath)
 	if err != nil {
 		return err
@@ -247,12 +267,12 @@ func syncPush(ctx context.Context, dbPath string, r remote, force bool, tmp stri
 	}
 	if found {
 		cur, err := inspectDB(ctx, current, r.String())
-		if err != nil {
-			return err
-		}
-		if out.Version > cur.Version {
+		if cur.Version >= 1 && out.Version > cur.Version {
 			return fmt.Errorf("%s has schema version %d but %s has %d; upgrade teacher on %s and open it once, then push again; nothing changed",
 				r, cur.Version, dbPath, out.Version, r.host)
+		}
+		if err != nil {
+			return err
 		}
 		if !force && cur.Latest.After(out.Latest) {
 			return newerActivity(r.String(), cur.Latest, dbPath, out.Latest)
@@ -267,11 +287,24 @@ func syncPush(ctx context.Context, dbPath string, r remote, force bool, tmp stri
 		return err
 	}
 	stamp := now().Format(stampLayout)
-	if err := r.replace(snapshot, stamp); err != nil {
+	backup, err := r.replace(snapshot, stamp)
+	var unknown *replaceUnknown
+	if errors.As(err, &unknown) {
+		kept := "there was no database there before"
+		switch {
+		case unknown.backup != "":
+			kept = "its previous database is kept as " + unknown.backup
+		case found:
+			kept = fmt.Sprintf("its previous database is kept as %s.bak-%s or the same name with a -N suffix", r, stamp)
+		}
+		return fmt.Errorf("%w; the connection dropped at the final step, so %s may already be replaced by %s; %s",
+			unknown.err, r, dbPath, kept)
+	}
+	if err != nil {
 		return err
 	}
-	if found {
-		fmt.Fprintf(stdout, "Backup: %s.bak-%s\n", r, stamp)
+	if backup != "" {
+		fmt.Fprintf(stdout, "Backup: %s\n", backup)
 	}
 	fmt.Fprintf(stdout, "Pushed %s to %s\n", dbPath, r)
 	return nil
@@ -292,13 +325,24 @@ func replaceLocal(ctx context.Context, src, dst string, exists bool, stdout io.W
 		return err
 	}
 	if exists {
-		backup := dst + ".bak-" + stamp
-		if err := copyFile(dst, backup); err != nil {
+		backup, err := backupLocal(dst, dst+".bak-"+stamp)
+		if err != nil {
 			return fmt.Errorf("backup %s: %w; nothing changed", backup, err)
 		}
 		fmt.Fprintf(stdout, "Backup: %s\n", backup)
 	}
 	return os.Rename(next, dst)
+}
+
+func backupLocal(src, base string) (string, error) {
+	name := base
+	for i := 1; ; i++ {
+		err := copyFile(src, name)
+		if !errors.Is(err, os.ErrExist) {
+			return name, err
+		}
+		name = fmt.Sprintf("%s-%d", base, i)
+	}
 }
 
 func copyFile(src, dst string) error {
@@ -333,6 +377,9 @@ func inspectDB(ctx context.Context, path, shown string) (store.Info, error) {
 	switch {
 	case errors.Is(err, store.ErrNotTeacherDB):
 		return info, fmt.Errorf("%s is not a teacher database; nothing changed", shown)
+	case errors.Is(err, store.ErrNewerSchema):
+		return info, fmt.Errorf("%s has schema version %d; this teacher reads up to %d (upgrade teacher here first); nothing changed",
+			shown, info.Version, store.SchemaVersion())
 	case errors.Is(err, store.ErrIntegrity):
 		return info, fmt.Errorf("%s failed the integrity check; nothing changed", shown)
 	case err != nil:
