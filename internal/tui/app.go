@@ -11,6 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/kevnnard/english-teacher/internal/domain"
+	"github.com/kevnnard/english-teacher/internal/speech"
 	"github.com/kevnnard/english-teacher/internal/srs"
 )
 
@@ -58,6 +59,8 @@ type Config struct {
 
 	Teacher Teacher // the AI teacher; nil turns Learn, Write, Talk and the grammar quiz off
 	Add     AddFunc // stores cards the teacher made; nil adds nothing
+
+	Speaker speech.Speaker // reads text aloud; nil when audio is not set up
 
 	MistakeCounts  map[string]int     // logged major writing errors per kind
 	RecordMistakes RecordMistakesFunc // logs major writing errors; nil logs nothing
