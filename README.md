@@ -91,6 +91,8 @@ teacher [--db path] set name <name>              set your name
 teacher [--db path] set goal <minutes>           set the daily goal (default 20)
 teacher models                                   list the AI model of each capability
 teacher set model <capability> <provider/model>  reading, writing, conversation or quiz
+teacher setup voice                              download the default voice for speech
+teacher doctor                                   check pi, piper, the voice, a player and whisper
 teacher --version                                print the version
 ```
 
@@ -271,7 +273,24 @@ Models live in `$XDG_CONFIG_HOME/english-teacher/config.json`
 (`~/.config/english-teacher/config.json`); `--config path` picks another.
 The defaults are Sonnet for reading, writing and conversation and Haiku for
 quizzes; any model in `pi --list-models` works. A `"pi"` key sets the path of
-the `pi` binary.
+the `pi` binary; `"piper"` sets the path of `piper` and `"voice"` a voice
+model path or name (looked up in the voices folder).
+
+## Audio (optional)
+
+The app can read words and texts aloud with [Piper](https://github.com/OHF-Voice/piper1-gpl),
+a local text-to-speech program. Everything runs on your machine; without it
+the app works the same, just silent.
+
+```sh
+uv tool install piper-tts   # installs ~/.local/bin/piper
+teacher setup voice         # downloads en_US-lessac-medium (about 60 MB)
+teacher doctor              # shows what is found: pi, piper, the voice, a player, whisper
+```
+
+Voices live in `$XDG_DATA_HOME/english-teacher/voices/`
+(`~/.local/share/english-teacher/voices/`). Sound plays through the first of
+`pw-play`, `paplay`, `aplay` or `afplay` on your PATH.
 
 
 <details>
@@ -358,6 +377,7 @@ internal/progress/  streak, week and daily totals (pure, no I/O)
 internal/importer/  imports a markdown vocabulary bank and progress folder
 internal/store/     SQLite persistence
 internal/llm/pi/    runs the AI through the pi CLI
+internal/speech/    audio port; speech/piper/ speaks through Piper
 internal/teacher/   AI teacher use cases: prompts and answers
 internal/tui/       Bubbletea screens
 ```

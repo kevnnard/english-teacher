@@ -19,8 +19,10 @@ var capabilities = []string{"reading", "writing", "conversation", "quiz"}
 
 // config is the optional config.json. Anything missing takes its default.
 type config struct {
-	Pi     string            `json:"pi,omitempty"` // the pi binary; "pi" from PATH by default
-	Models map[string]string `json:"models"`       // capability -> provider/model
+	Pi     string            `json:"pi,omitempty"`    // the pi binary; "pi" from PATH by default
+	Piper  string            `json:"piper,omitempty"` // the piper binary; found on PATH or in ~/.local/bin by default
+	Voice  string            `json:"voice,omitempty"` // a voice model path or name; en_US-lessac-medium by default
+	Models map[string]string `json:"models"`          // capability -> provider/model
 }
 
 // defaultConfig uses a strong model for the jobs where quality matters
@@ -60,6 +62,7 @@ func loadConfig(path string) (config, error) {
 	if file.Pi != "" {
 		c.Pi = file.Pi
 	}
+	c.Piper, c.Voice = file.Piper, file.Voice
 	for k, v := range file.Models {
 		c.Models[k] = v
 	}

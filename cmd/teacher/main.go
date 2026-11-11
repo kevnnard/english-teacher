@@ -10,6 +10,8 @@
 //	teacher [--db path] set goal <minutes>               set the daily goal
 //	teacher [--config path] models                       list the model of each capability
 //	teacher [--config path] set model <capability> <m>   set the model of one capability
+//	teacher setup voice                                  download the default voice for speech
+//	teacher [--config path] doctor                       check pi, piper, the voice, a player and whisper
 //	teacher --version                                    print the version
 package main
 
@@ -43,6 +45,8 @@ const usage = `usage:
   teacher [--db path] set goal <minutes>           set the daily goal (default 20)
   teacher models                                   list the AI model of each capability
   teacher set model <capability> <provider/model>  reading, writing, conversation or quiz
+  teacher setup voice                              download the default voice for speech
+  teacher doctor                                   check pi, piper, the voice, a player and whisper
   teacher --version                                print the version
 
   --new n  most never-reviewed cards per session (default 20)`
@@ -103,6 +107,13 @@ func run(args []string, stdout io.Writer) error {
 			return errors.New(usage)
 		}
 		return runModels(*configPath, stdout)
+	case "setup":
+		return runSetup(rest, stdout)
+	case "doctor":
+		if len(rest) != 0 {
+			return errors.New(usage)
+		}
+		return runDoctor(*configPath, stdout)
 	case "review":
 		if len(rest) != 0 {
 			return errors.New(usage)
@@ -377,6 +388,7 @@ func appConfig(ctx context.Context, st *store.Store, opts appOptions) (tui.Confi
 		Days:    days,
 		Record:  func(d domain.Day) error { return st.RecordStudy(ctx, d) },
 		Teacher: teacher.New(conf.models()),
+		Speaker: conf.speaker(),
 		Add:     func(c []domain.Card) (int, error) { return st.AddCards(ctx, c) },
 
 		MistakeCounts:  mistakes,
