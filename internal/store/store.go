@@ -102,6 +102,20 @@ var migrations = []string{
 		correct     INTEGER NOT NULL DEFAULT 0,
 		updated_at  TEXT    NOT NULL DEFAULT ''
 	);`,
+
+	// 6: extensive reading. Each day counts the words of the story
+	// chapters finished that day, and each story keeps only its current
+	// chapter plus a running summary of the story so far.
+	`ALTER TABLE days ADD COLUMN words_read INTEGER NOT NULL DEFAULT 0;
+	CREATE TABLE stories (
+		id       INTEGER PRIMARY KEY AUTOINCREMENT,
+		title    TEXT    NOT NULL,
+		chapter  INTEGER NOT NULL DEFAULT 1,
+		summary  TEXT    NOT NULL DEFAULT '',
+		text     TEXT    NOT NULL DEFAULT '',
+		details  TEXT    NOT NULL DEFAULT '',
+		done     INTEGER NOT NULL DEFAULT 0
+	);`,
 }
 
 // Store is a SQLite-backed card repository.

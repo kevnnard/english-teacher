@@ -14,7 +14,7 @@ import (
 // Days returns every recorded study day, oldest first.
 func (s *Store) Days(ctx context.Context) ([]domain.Day, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT date, minutes, reviews, correct, failed, activities FROM days ORDER BY date`)
+		`SELECT date, minutes, reviews, correct, failed, words_read, activities FROM days ORDER BY date`)
 	if err != nil {
 		return nil, err
 	}
@@ -40,6 +40,7 @@ func (s *Store) RecordStudy(ctx context.Context, delta domain.Day) error {
 		d.Reviews = max(0, d.Reviews+delta.Reviews)
 		d.Correct = max(0, d.Correct+delta.Correct)
 		d.Failed = max(0, d.Failed+delta.Failed)
+		d.WordsRead = max(0, d.WordsRead+delta.WordsRead)
 		d.Activities = mergeActivities(d.Activities, delta.Activities)
 	})
 }
@@ -60,6 +61,7 @@ func (s *Store) MergeDays(ctx context.Context, history []domain.Day) (int, error
 			d.Reviews = max(d.Reviews, h.Reviews)
 			d.Correct = max(d.Correct, h.Correct)
 			d.Failed = max(d.Failed, h.Failed)
+			d.WordsRead = max(d.WordsRead, h.WordsRead)
 			d.Activities = mergeActivities(d.Activities, h.Activities)
 		})
 		if err != nil {
@@ -123,7 +125,7 @@ func (s *Store) updateDay(ctx context.Context, date domain.Date, change func(*do
 	defer tx.Rollback() // no-op after Commit
 
 	d, err := scanDay(tx.QueryRowContext(ctx,
-		`SELECT date, minutes, reviews, correct, failed, activities FROM days WHERE date = ?`, date.String()))
+		`SELECT date, minutes, reviews, correct, failed, words_read, activities FROM days WHERE date = ?`, date.String()))
 	if errors.Is(err, sql.ErrNoRows) {
 		d, err = domain.Day{Date: date}, nil
 	}
@@ -133,10 +135,11 @@ func (s *Store) updateDay(ctx context.Context, date domain.Date, change func(*do
 	change(&d)
 
 	_, err = tx.ExecContext(ctx,
-		`INSERT INTO days (date, minutes, reviews, correct, failed, activities) VALUES (?, ?, ?, ?, ?, ?)
+		`INSERT INTO days (date, minutes, reviews, correct, failed, words_read, activities) VALUES (?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (date) DO UPDATE SET minutes = excluded.minutes, reviews = excluded.reviews,
-			correct = excluded.correct, failed = excluded.failed, activities = excluded.activities`,
-		date.String(), d.Minutes, d.Reviews, d.Correct, d.Failed, strings.Join(d.Activities, "\n"))
+			correct = excluded.correct, failed = excluded.failed, words_read = excluded.words_read,
+			activities = excluded.activities`,
+		date.String(), d.Minutes, d.Reviews, d.Correct, d.Failed, d.WordsRead, strings.Join(d.Activities, "\n"))
 	if err != nil {
 		return fmt.Errorf("day %s: %w", date, err)
 	}
@@ -159,7 +162,7 @@ func scanDay(row scanner) (domain.Day, error) {
 		d          domain.Day
 		date, acts string
 	)
-	if err := row.Scan(&date, &d.Minutes, &d.Reviews, &d.Correct, &d.Failed, &acts); err != nil {
+	if err := row.Scan(&date, &d.Minutes, &d.Reviews, &d.Correct, &d.Failed, &d.WordsRead, &acts); err != nil {
 		return d, err
 	}
 	var err error
