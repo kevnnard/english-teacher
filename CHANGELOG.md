@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 — 2026-11-11
+
+Sync the database between two machines over ssh. No database migration.
 
 ### Sync
 - `teacher sync push [user@]host` and `teacher sync pull [user@]host` copy
