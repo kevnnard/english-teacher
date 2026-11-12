@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 — 2026-11-12
 
 Each learner uses their own AI subscription. No database migration.
 
