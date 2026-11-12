@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/kevnnard/english-teacher/internal/llm/agy"
 	"github.com/kevnnard/english-teacher/internal/llm/pi"
 	"github.com/kevnnard/english-teacher/internal/teacher"
 )
@@ -23,18 +25,13 @@ type config struct {
 	Piper  string            `json:"piper,omitempty"` // the piper binary; found on PATH or in ~/.local/bin by default
 	Voice  string            `json:"voice,omitempty"` // a voice model path or name; en_US-lessac-medium by default
 	Models map[string]string `json:"models"`          // capability -> provider/model
+	Agy    string            `json:"agy,omitempty"`
 }
 
-// defaultConfig uses a strong model for the jobs where quality matters
-// most and a fast one for quizzes. Haiku corrected "I has 30 years" as
-// "I have 30 years" with a loose prompt, so correction uses Sonnet.
+// defaultConfig sets no model: each learner picks their own with
+// `teacher setup ai` or `teacher set model`.
 func defaultConfig() config {
-	return config{Pi: "pi", Models: map[string]string{
-		"reading":      "claude-bridge/claude-sonnet-5-5",
-		"writing":      "claude-bridge/claude-sonnet-5-5",
-		"conversation": "claude-bridge/claude-sonnet-5-5",
-		"quiz":         "claude-bridge/claude-haiku-5-5",
-	}}
+	return config{Pi: "pi", Agy: "agy", Models: map[string]string{}}
 }
 
 // defaultConfigPath follows the XDG spec: $XDG_CONFIG_HOME, else ~/.config.
@@ -62,6 +59,9 @@ func loadConfig(path string) (config, error) {
 	if file.Pi != "" {
 		c.Pi = file.Pi
 	}
+	if file.Agy != "" {
+		c.Agy = file.Agy
+	}
 	c.Piper, c.Voice = file.Piper, file.Voice
 	for k, v := range file.Models {
 		c.Models[k] = v
@@ -80,10 +80,26 @@ func saveConfig(path string, c config) error {
 	return os.WriteFile(path, append(data, '\n'), 0o644)
 }
 
-// models builds one pi model per capability.
+// models builds one model per capability: agy/<id> through agy, any
+// other provider through pi, and an error for a capability with none.
 func (c config) models() teacher.Models {
-	m := func(cap string) teacher.Model { return pi.Model{Command: c.Pi, Model: c.Models[cap]} }
+	m := func(cap string) teacher.Model {
+		model := c.Models[cap]
+		if model == "" {
+			return missingModel(cap)
+		}
+		if id, ok := strings.CutPrefix(model, "agy/"); ok {
+			return agy.Model{Command: c.Agy, Model: id}
+		}
+		return pi.Model{Command: c.Pi, Model: model}
+	}
 	return teacher.Models{Reading: m("reading"), Writing: m("writing"), Conversation: m("conversation"), Quiz: m("quiz")}
+}
+
+type missingModel string
+
+func (m missingModel) Complete(context.Context, teacher.Request) (string, error) {
+	return "", fmt.Errorf("no AI model set for %s: run \"teacher setup ai\"", string(m))
 }
 
 // runModels prints the model each capability uses.
@@ -93,11 +109,20 @@ func runModels(path string, stdout io.Writer) error {
 		return err
 	}
 	fmt.Fprintf(stdout, "Models (%s):\n", path)
-	for _, cap := range capabilities {
-		fmt.Fprintf(stdout, "  %-12s  %s\n", cap, c.Models[cap])
-	}
-	fmt.Fprintln(stdout, "\nChange one with `teacher set model <capability> <provider/model>`; see `pi --list-models`.")
+	printModels(stdout, c)
+	fmt.Fprintln(stdout, "\nPick them all with `teacher setup ai`, or change one with `teacher set model <capability> <provider/model>`.")
+	fmt.Fprintln(stdout, "Antigravity models are agy/<id> (see `agy models`); any other provider goes through pi (see `pi --list-models`).")
 	return nil
+}
+
+func printModels(w io.Writer, c config) {
+	for _, cap := range capabilities {
+		model := c.Models[cap]
+		if model == "" {
+			model = "(not set)"
+		}
+		fmt.Fprintf(w, "  %-12s  %s\n", cap, model)
+	}
 }
 
 // setModel validates and saves the model of one capability.
@@ -114,7 +139,7 @@ func setModel(path string, args []string, stdout io.Writer) error {
 		return fmt.Errorf("unknown capability %q (want %s)", cap, strings.Join(capabilities, ", "))
 	}
 	if provider, id, ok := strings.Cut(model, "/"); !ok || provider == "" || id == "" {
-		return fmt.Errorf("model %q must be provider/model, like claude-bridge/claude-sonnet-5-5", model)
+		return fmt.Errorf("model %q must be provider/model, like agy/<model-id>", model)
 	}
 
 	c, err := loadConfig(path)

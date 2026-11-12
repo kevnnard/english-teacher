@@ -6,3 +6,10 @@ design/preview.html
 .atl/
 odd/
 design/
+
+# Credentials and local config, never published
+.env
+*.env
+auth*.json
+oauth*.json
+/config.json
