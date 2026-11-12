@@ -11,6 +11,7 @@
 //	teacher [--db path] set level <A1|A2|B1|B2|C1|C2>    set the level and restart its clock
 //	teacher [--config path] models                       list the model of each capability
 //	teacher [--config path] set model <capability> <m>   set the model of one capability
+//	teacher [--config path] setup ai                     pick the AI model of each capability from agy models
 //	teacher setup voice                                  download the default voice for speech
 //	teacher setup whisper                                download the whisper model for Speak
 //	teacher [--config path] doctor                       check pi, piper, the voice, a player, whisper and a recorder
@@ -50,6 +51,7 @@ const usage = `usage:
   teacher [--db path] sync pull [user@]host        bring the other machine's database here
   teacher models                                   list the AI model of each capability
   teacher set model <capability> <provider/model>  reading, writing, conversation or quiz
+  teacher setup ai                                 pick your AI models from your Antigravity account
   teacher setup voice                              download the default voice for speech
   teacher setup whisper                            download the whisper model for Speak
   teacher doctor                                   check the AI, speech and listening programs
@@ -61,6 +63,8 @@ const usage = `usage:
 // Release builds set it with -ldflags "-X main.version=X.Y.Z"; the default
 // is the current release, so `go install` builds print it too.
 var version = "0.2.0"
+
+var stdin io.Reader = os.Stdin
 
 func main() {
 	os.Exit(cli(os.Args[1:], os.Stdout, os.Stderr))
@@ -119,7 +123,7 @@ func run(args []string, stdout io.Writer) error {
 		}
 		return runModels(*configPath, stdout)
 	case "setup":
-		return runSetup(rest, stdout)
+		return runSetup(*configPath, rest, stdout)
 	case "doctor":
 		if len(rest) != 0 {
 			return errors.New(usage)

@@ -123,14 +123,16 @@ func (c config) voices() []string {
 	return installedVoices(c.speechSetup().VoicesDir)
 }
 
-// runSetup sets up one optional capability: "voice" (speech) or
-// "whisper" (listening to the learner).
-func runSetup(args []string, stdout io.Writer) error {
+// runSetup sets up one optional capability: "voice" (speech),
+// "whisper" (listening to the learner) or "ai" (the AI models).
+func runSetup(configPath string, args []string, stdout io.Writer) error {
 	if len(args) != 1 {
 		return errors.New(usage)
 	}
 	home, _ := os.UserHomeDir()
 	switch args[0] {
+	case "ai":
+		return setupAI(configPath, stdin, stdout)
 	case "voice":
 		return setupVoice(voicesDir(os.Getenv("XDG_DATA_HOME"), home), stdout)
 	case "whisper":

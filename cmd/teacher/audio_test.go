@@ -121,7 +121,7 @@ func TestSetupVoiceFailureLeavesNoFiles(t *testing.T) {
 
 func TestSetupNeedsAKnownThing(t *testing.T) {
 	isolate(t)
-	for _, args := range [][]string{{"setup"}, {"setup", "music"}, {"setup", "voice", "x"}, {"setup", "whisper", "x"}} {
+	for _, args := range [][]string{{"setup"}, {"setup", "music"}, {"setup", "voice", "x"}, {"setup", "whisper", "x"}, {"setup", "ai", "x"}} {
 		if err := run(args, &bytes.Buffer{}); err == nil || !strings.Contains(err.Error(), "usage") {
 			t.Errorf("%v: err = %v, want usage", args, err)
 		}

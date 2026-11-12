@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+Each learner uses their own AI subscription. No database migration.
+
+### AI models
+- New `agy` provider: a model `agy/<model-id>` runs through the `agy` command
+  of Antigravity, with the learner's own login. The app runs it with no tools
+  in an empty temporary folder and never reads or stores credentials. An
+  `"agy"` config key sets its path (default `agy` on the PATH).
+- `teacher setup ai` lists the models of the learner's account (`agy models`)
+  and asks which one to use for reading, writing, conversation and quiz,
+  suggesting a strong one for the first three and a fast one for quiz
+  (`enter` keeps it). It saves them as `agy/<model-id>` and prints them. When
+  `agy` is missing or not logged in it says how to set it up and saves
+  nothing.
+- No model is set by default any more. A lesson whose capability has no model
+  says `no AI model set for <capability>: run "teacher setup ai"`, and
+  `teacher models` shows `(not set)`. Models of any other provider keep going
+  through `pi`, so existing configs keep working.
+- `.gitignore` also ignores `.env` files, `auth*.json`, `oauth*.json` and a
+  repo-local `config.json`.
+
 ## 0.4.0 — 2026-11-11
 
 Sync the database between two machines over ssh. No database migration.

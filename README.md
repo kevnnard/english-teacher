@@ -81,6 +81,7 @@ teacher set name Ana         # Home greets you by name
 teacher set goal 20          # daily goal in minutes (default 20)
 teacher set level A1         # your CEFR level; its start date becomes today
 teacher import ./progress    # optional: bring in an existing vocabulary bank
+teacher setup ai             # pick the AI models of your own Antigravity account
 teacher                      # open the app on Home
 ```
 
@@ -101,6 +102,7 @@ teacher [--db path] sync push [user@]host        send this database to another m
 teacher [--db path] sync pull [user@]host        bring the other machine's database here
 teacher models                                   list the AI model of each capability
 teacher set model <capability> <provider/model>  reading, writing, conversation or quiz
+teacher setup ai                                 pick your AI models from your Antigravity account
 teacher setup voice                              download the default voice for speech
 teacher setup whisper                            download the whisper model for Speak
 teacher doctor                                   check the AI, speech and listening programs
@@ -216,10 +218,25 @@ back if you grade it good, and the last wrong answer you typed.
 
 ### The AI teacher
 
-Learn, Write, Talk and the grammar quiz use the AI through `pi`, the engine of Gentle Shell, so they
-need Gentle Shell installed and signed in; the app never reads its
-credentials. Each answer takes about 10 seconds. Without `pi` these screens
-say how to turn it on and the rest of the app works as before.
+Learn, Write, Talk and the grammar quiz use an AI model. Each learner uses
+their own subscription: the app ships with no model and no account, and it
+never reads or stores any credential.
+
+- **Antigravity** — install Antigravity, which provides the `agy` command,
+  and log in to it once with your own account. Then run `teacher setup ai`:
+  it lists the models your account offers (`agy models`), numbered, and asks
+  which one to use for reading, writing, conversation and quiz. Each question
+  suggests one (a strong model for the first three, a fast one for quiz);
+  `enter` keeps it, or type its number. The choices are saved as
+  `agy/<model-id>`. The app runs `agy` with no tools in an empty temporary
+  folder, so it never touches your files; `agy` uses its own login.
+- **pi** — `pi`, the engine of Gentle Shell, still works: set a model of any
+  other provider with `teacher set model <capability> <provider/model>`
+  (see `pi --list-models`). It needs Gentle Shell installed and signed in.
+
+Each answer takes a few seconds. Until a capability has a model, its screens
+say `no AI model set for <capability>: run "teacher setup ai"`, and the rest
+of the app works as before.
 
 - **Learn** writes a 60–100 word text at your level that reuses the words you
   know and adds at most 3 new words or chunks (`new` in the glossary), so you
@@ -567,10 +584,13 @@ Sunday, starting again at 0 every Monday.
 
 Models live in `$XDG_CONFIG_HOME/english-teacher/config.json`
 (`~/.config/english-teacher/config.json`); `--config path` picks another.
-The defaults are Sonnet for reading, writing and conversation and Haiku for
-quizzes; any model in `pi --list-models` works. A `"pi"` key sets the path of
-the `pi` binary; `"piper"` sets the path of `piper` and `"voice"` a voice
-model path or name (looked up in the voices folder).
+No model is set by default: `teacher setup ai` picks them from `agy models`,
+and `teacher models` shows each one, or `(not set)`. A model is
+`provider/model`: `agy/<model-id>` goes through `agy`, any other provider
+through `pi` (`pi --list-models`). An `"agy"` key sets the path of the `agy`
+binary (default `agy` on your PATH) and a `"pi"` key the path of `pi`;
+`"piper"` sets the path of `piper` and `"voice"` a voice model path or name
+(looked up in the voices folder). The config holds no credentials.
 
 ## Audio (optional)
 
